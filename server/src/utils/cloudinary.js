@@ -10,7 +10,7 @@ import fs from "fs";
     });
 
 
-const uploadFilePath = async (localFilePath) => {
+const uploadOnCloudinary = async (localFilePath) => {
     try{
         if(!localFilePath){
             throw new Error("File path is required");
@@ -28,4 +28,4 @@ const uploadFilePath = async (localFilePath) => {
     }
 };
 
-export {uploadFilePath};
+export {uploadOnCloudinary};
