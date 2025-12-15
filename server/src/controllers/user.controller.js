@@ -39,7 +39,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
 
     // check for images, check for avatar
     const avatarLocalPath =  req.files?.avatar[0]?.path;
-    const coverImageLocalPath =  req.files?.coverimage[0]?.path;
+    const coverImageLocalPath =  req.files?.coverImage[0]?.path;
 
     if(!avatarLocalPath){
         throw new ApiError(400, "Avatar image is required");
@@ -70,7 +70,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
         "-password -refreshToken"
     )
 
-    
+
     // check for user creation success
     if(!createdUser){
         throw new ApiError(500, "Failed to create user");
