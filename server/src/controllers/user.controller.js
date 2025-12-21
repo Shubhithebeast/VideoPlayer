@@ -20,7 +20,7 @@ const generateAccessAndRefreshTokens = async(userid) => {
         return {accessToken, refreshToken};
 
     }catch(error){
-        throw new ApiError(500, "Failed to generate Access and Refresh Tokens");
+        throw new ApiError(500, "Failed to generate Access and Refresh Tokens: " + error.message);
     }
 }
 
@@ -111,7 +111,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
 const loginUser = asyncHandler(async (req, res, next) => {
     // get login data from request body
     const {email, username, password} = req.body;
-    if(!username || !email){
+    if(!password && !(username || email)){
         throw new ApiError(400, "Email or username is required for login");
     }
 
@@ -133,7 +133,7 @@ const loginUser = asyncHandler(async (req, res, next) => {
     // access token and refresh token
     const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id);
 
-    const logedInUser = await User.findById(user._id).select("-password -refreshToken");
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
 
 
     // send cookies 
@@ -148,7 +148,7 @@ const loginUser = asyncHandler(async (req, res, next) => {
     .cookie("accessToken", accessToken, cookieOptions)
     .cookie("refreshToken", refreshToken, cookieOptions)
     .json(new apiResponse(200, "User logged in successfully", {
-        user: logedInUser,
+        user: loggedInUser,
         accessToken,
         refreshToken
     })
