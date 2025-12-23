@@ -1,9 +1,9 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteFromCloudinary, extractPublicIdFromUrl, uploadOnCloudinary } from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
-import { jwt } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
 const generateAccessAndRefreshTokens = async(userid) => {
     try{
@@ -301,6 +301,28 @@ const updateUserAvatar = asyncHandler(async (req, res, next) => {
         throw new ApiError(400, "Avatar image is required");
     }
 
+    // Get current user to access old avatar URL
+    const currentUser = await User.findById(req.user._id);
+    if(!currentUser){
+        throw new ApiError(404, "User not found");
+    }
+
+    // Delete old avatar from Cloudinary if exists
+    if(currentUser.avatar){
+        const oldAvatarPublicId = extractPublicIdFromUrl(currentUser.avatar);
+        if(oldAvatarPublicId){
+            try{
+                await deleteFromCloudinary(oldAvatarPublicId);
+                console.log("Old avatar deleted from Cloudinary");
+            }catch(error){
+                console.log("Error deleting old avatar from Cloudinary:", error);
+            }
+        }else{
+            console.log("Could not extract public ID from old avatar URL");
+        }
+    }
+    
+    // Upload new avatar to Cloudinary
     const avatar = await uploadOnCloudinary(avatarLocalPath);
     if(!avatar.url){
         throw new ApiError(500, "Failed to upload avatar image");
@@ -328,6 +350,29 @@ const updateUserCoverImage = asyncHandler(async (req, res, next) => {
         throw new ApiError(400, "Cover image is required");
     }
 
+    //get current user to access old cover image URL
+    const currentUser = await User.findById(req.user._id);
+    if(!currentUser){
+        throw new ApiError(404, "User not found");
+    }
+
+    // Delete old cover image from Cloudinary if exists
+    if(currentUser.coverImage){
+        const oldCoverImagePublicId = extractPublicIdFromUrl(currentUser.coverImage);
+        if(oldCoverImagePublicId){
+            try{
+                await deleteFromCloudinary(oldCoverImagePublicId);  
+                console.log("Old cover image deleted from Cloudinary");
+            }catch(error){
+                console.log("Error deleting old cover image from Cloudinary:", error);
+            }
+        }else{
+            console.log("Could not extract public ID from old cover image URL");
+        }   
+    }
+
+
+    // Upload new cover image to Cloudinary
     const coverImage = await uploadOnCloudinary(coverImageLocalPath);
     if(!coverImage.url){
         throw new ApiError(500, "Failed to upload cover image");
