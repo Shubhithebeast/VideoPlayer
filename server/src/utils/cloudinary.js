@@ -1,14 +1,22 @@
 import {v2 as cloudinary} from "cloudinary";
 import fs from "fs";
 
+// Configure Cloudinary once at module level
+cloudinary.config({ 
+    cloud_name: process.env.CLOUDINARY_NAME, 
+    api_key: process.env.CLOUDINARY_API_KEY, 
+    api_secret: process.env.CLOUDINARY_API_SECRET 
+});
+
+// // Debug: Log to verify env vars are loaded (remove after testing)
+// console.log("Cloudinary Config:", {
+//     cloud_name: process.env.CLOUDINARY_NAME,
+//     api_key: process.env.CLOUDINARY_API_KEY ? "***" + process.env.CLOUDINARY_API_KEY.slice(-4) : "NOT SET",
+//     api_secret: process.env.CLOUDINARY_API_SECRET ? "***SET***" : "NOT SET"
+// });
+
 const uploadOnCloudinary = async (localFilePath) => {
     try{
-        // Configure Cloudinary (reads env vars at runtime, not import time)
-        cloudinary.config({ 
-            cloud_name: process.env.CLOUDINARY_NAME, 
-            api_key: process.env.CLOUDINARY_API_KEY, 
-            api_secret: process.env.CLOUDINARY_API_SECRET 
-        });
 
         if(!localFilePath){
             throw new Error("File path is required");
@@ -30,22 +38,17 @@ const uploadOnCloudinary = async (localFilePath) => {
 const deleteFromCloudinary = async (publicId) => {
     try {
 
-        cloudinary.config({ 
-            cloud_name: process.env.CLOUDINARY_NAME, 
-            api_key: process.env.CLOUDINARY_API_KEY, 
-            api_secret: process.env.CLOUDINARY_API_SECRET 
-        });
-
         if(!publicId){
             throw new Error("Public ID is required..");
         }
 
-        const deleteResult = await cloudinary.uploader.destroy(publicId, {resource_type: "auto"});
+        const deleteResult = await cloudinary.uploader.destroy(publicId, {resource_type: "image"});
         return deleteResult;
 
         
     } catch (error) {
-        throw new Error("Error deleting file from Cloudinary:", error);
+        console.log("Cloudinary delete error details:", error);
+        throw error;
     }
 
 }

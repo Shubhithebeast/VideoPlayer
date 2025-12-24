@@ -26,9 +26,11 @@ const generateAccessAndRefreshTokens = async(userid) => {
 }
 
 const getCurrentUser = asyncHandler(async (req, res, next) => {
+    const users = await User.find({}).select("-password -refreshToken");
+    
     return res
     .status(200)
-    .json(new apiResponse(200, "Current user fetched successfully", req.user));
+    .json(new apiResponse(200, "Current user fetched successfully", users));
 
 });
 
@@ -59,11 +61,10 @@ const registerUser = asyncHandler(async (req, res, next) => {
 
 
     // check if user already exists
-    User.findOne({ $or: [{ email }, { username }] }).then((existingUser) => {
-        if (existingUser) {
-            throw new ApiError(409, "User with this email or username already exists");
-        }
-    });
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    if (existingUser) {
+        throw new ApiError(409, "User with this email or username already exists");
+    }
 
 
     // check for images, check for avatar
@@ -204,7 +205,7 @@ const logoutUser = asyncHandler(async (req, res, next) => {
 const refreshAccessToken = asyncHandler(async (req, res, next) => {
 
     try {
-        const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+        const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
     
         if(!incomingRefreshToken){
             throw new ApiError(401, "Refresh token is missing");
@@ -223,7 +224,7 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
             throw new ApiError(401, "Invalid refresh token");
         }
     
-        const {newAccessToken, newRefreshToken} = await generateAccessAndRefreshTokens(user._id);
+        const {accessToken: newAccessToken, refreshToken: newRefreshToken} = await generateAccessAndRefreshTokens(user._id);
     
         const cookieOptions = {
             httpOnly: true,
