@@ -32,9 +32,16 @@ router.route("/changePassword").post(upload.none(), verifyJWT, changeCurrentUser
 router.route("/updateAccountDetails").post(upload.none(), verifyJWT, updateAccountDetails);
 
 // Update user avatar image - Auth: accessToken, File: avatar
-router.route("/updateAvatar").post(verifyJWT, upload.single("avatar"), updateUserAvatar);
+router.route("/avatar").post(verifyJWT, upload.single("avatar"), updateUserAvatar);
 
 // Update user cover image - Auth: accessToken, File: coverImage
-router.route("/updateCoverImage").post(verifyJWT, upload.single("coverImage"), updateUserCoverImage);
+router.route("/coverImage").post(verifyJWT, upload.single("coverImage"), updateUserCoverImage);
+
+// Get user channel profile by username - Params: username
+router.route("/c/:username").get(verifyJWT, userChannelProfile);
+
+// Get user watch history - Auth: accessToken
+router.route("/history").get(verifyJWT, getWatchHistory);
+
 
 export default router;
