@@ -265,7 +265,7 @@ Fields:
 
 ### Error Handling
 
-All errors are handled consistently with the `ApiError` class:
+All errors are handled consistently with the `apiError` class:
 ```javascript
 {
   statusCode: Number,
@@ -322,6 +322,11 @@ CORS is configured to accept requests from the origin specified in `CORS_ORIGIN`
 ## 📚 Model Reference
 
 Data model design: [Eraser.io Workspace](https://app.eraser.io/workspace/YtPqZ1VogxGy1jzIDkzj)
+
+![alt text](image.png)
+![alt text](image-1.png)
+![alt text](image-2.png)
+
 
 ## 👨‍💻 Author
 
