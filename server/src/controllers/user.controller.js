@@ -317,10 +317,10 @@ const updateUserAvatar = asyncHandler(async (req, res, next) => {
                 await deleteFromCloudinary(oldAvatarPublicId);
                 console.log("Old avatar deleted from Cloudinary");
             }catch(error){
-                console.log("Error deleting old avatar from Cloudinary:", error);
+                console.error("Error deleting old avatar from Cloudinary:", error);
             }
         }else{
-            console.log("Could not extract public ID from old avatar URL");
+            console.error("Could not extract public ID from old avatar URL");
         }
     }
     
@@ -366,10 +366,10 @@ const updateUserCoverImage = asyncHandler(async (req, res, next) => {
                 await deleteFromCloudinary(oldCoverImagePublicId);  
                 console.log("Old cover image deleted from Cloudinary");
             }catch(error){
-                console.log("Error deleting old cover image from Cloudinary:", error);
+                console.error("Error deleting old cover image from Cloudinary:", error);
             }
         }else{
-            console.log("Could not extract public ID from old cover image URL");
+            console.error("Could not extract public ID from old cover image URL");
         }   
     }
 

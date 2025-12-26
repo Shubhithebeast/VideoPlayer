@@ -47,6 +47,7 @@ node_modules/
 jspm_packages/
 package-lock.json
 .vscode
+sampleData/
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/

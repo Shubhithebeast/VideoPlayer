@@ -208,7 +208,7 @@ Fields:
 ### Video Model
 ```javascript
 {
-  videoFile: String (URL),
+  video: String (URL),
   thumbnail: String (URL),
   title: String,
   description: String,
