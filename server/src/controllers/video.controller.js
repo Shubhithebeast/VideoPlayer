@@ -40,10 +40,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
         sortOptions[sortBy] = sortOrder;
     }
 
-
     // Build aggregation pipeline:
-    const videos = await Video.aggregatePaginate([
-        // Match videos based on query (search in title/description) if provided
+    const pipeline = [
         {
             $match: matchConditions
         },
@@ -70,25 +68,28 @@ const getAllVideos = asyncHandler(async (req, res) => {
                 as: "likes" 
             }
         },
-
         {
             $addFields:{
                 likesCount: { $size: "$likes" },
                 uploadBy: { $first: "$uploadBy" }
             }
-        },
-        {
-            $sort: sortOptions
-        },
-        {
-            $project:{
-                likes:0,
-                __v:0
-            }
         }
-        
-    ],
-        // Apply pagination using aggregatePaginate
+    ];
+
+    // Only add sort stage if sortBy was provided
+    if (Object.keys(sortOptions).length > 0) {
+        pipeline.push({ $sort: sortOptions });
+    }
+
+    pipeline.push({
+        $project:{
+            likes:0,
+            __v:0
+        }
+    });
+
+    const videos = await Video.aggregatePaginate(
+        pipeline,
         { page: pageNumber, limit: limitNumber }
     );
 
