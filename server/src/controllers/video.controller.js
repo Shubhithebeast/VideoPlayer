@@ -10,16 +10,105 @@ const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
     
     // TODO: get all videos based on query, sort, pagination
-    // 1. Parse and validate query parameters (page, limit should be numbers)
-    // 2. Build aggregation pipeline:
-    //    - Match videos based on query (search in title/description) if provided
-    //    - Match videos by userId if provided
-    //    - Match only published videos (isPublished: true)
-    // 3. Add lookup to get owner details from User collection
-    // 4. Add lookup to get video statistics (likes, views)
-    // 5. Sort results based on sortBy (createdAt, views, duration) and sortType (asc/desc)
-    // 6. Apply pagination using aggregatePaginate
-    // 7. Return paginated results with video details
+    //Parse and validate query parameters
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = Math.min(parseInt(limit, 10) || 10, 50);
+
+    // Build match conditions
+    const matchConditions = { isPublished: true };
+
+    // add userId filter if provided
+    if(userId  && mongoose.isValidObjectId(userId)){
+        matchConditions.uploadBy = new mongoose.Types.ObjectId(userId);
+    }
+
+    //add search query filter if provided
+    // if(query){
+    //     matchConditions.$or = [
+    //         {title: {$regex: query, $options: "i"}},
+    //         {description: {$regex: query, $options: "i"}}
+    //     ];
+    // }
+    if(query){
+        matchConditions.$text = { $search: query };
+    }
+
+    // buid sort options
+    const sortOptions = {};
+    if (sortBy) {
+        const sortOrder = sortType === "asc" ? 1 : -1;
+        sortOptions[sortBy] = sortOrder;
+    }
+
+
+    // Build aggregation pipeline:
+    const videos = await Video.aggregatePaginate([
+        // Match videos based on query (search in title/description) if provided
+        {
+            $match: matchConditions
+        },
+        {
+            $lookup:{
+                from: "users",
+                localField: "uploadBy",
+                foreignField: "_id",
+                as: "uploadBy",
+                pipeline:[{ 
+                    $project:{
+                        username:1,
+                        fullname:1,
+                        avatar:1
+                    }
+                }]
+            }
+        },
+        {
+            $lookup:{
+                from: "likes",  
+                localField: "_id",
+                foreignField: "video",
+                as: "likes" 
+            }
+        },
+
+        {
+            $addFields:{
+                likesCount: { $size: "$likes" },
+                uploadBy: { $first: "$uploadBy" }
+            }
+        },
+        {
+            $sort: sortOptions
+        },
+        {
+            $project:{
+                likes:0,
+                __v:0
+            }
+        }
+        
+    ],
+        // Apply pagination using aggregatePaginate
+        { page: pageNumber, limit: limitNumber }
+    );
+
+    return res.status(200).json(new apiResponse(200, "Videos fetched successfully", 
+        {
+            videos: videos.docs,
+            pagination: {
+                totalDocs: videos.totalDocs,
+                totalPages: videos.totalPages,
+                currentPage: videos.page,
+                limit: videos.limit,
+                hasNextPage: videos.hasNextPage,
+                hasPrevPage: videos.hasPrevPage,
+                prevPage: videos.prevPage,
+                nextPage: videos.nextPage
+            }
+
+        }));
+
+
 })
 
 const publishVideo = asyncHandler(async (req, res) => {
