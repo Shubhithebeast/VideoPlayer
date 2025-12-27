@@ -1,3 +1,4 @@
+import mongoose from "mongoose"
 import {Video} from "../models/video.model.js"
 import { apiError } from "../utils/apiError.js"
 import {apiResponse} from "../utils/apiResponse.js"
@@ -86,27 +87,88 @@ const getVideoById = asyncHandler(async (req, res) => {
         
     const { videoId } = req.params
 
-    //Validate videoId (check if it's a valid MongoDB ObjectId)
-    const isValidObjectId = (id) => {
-        return /^[0-9a-fA-F]{24}$/.test(id);
+    if(!videoId){
+        throw new apiError(400, "Video ID is required");
     }
 
-    if(!isValidObjectId(videoId)){
-        throw new apiError(400, "Invalid video ID");
-    }
+    const video = await Video.aggregate([
+        // Find video by _id using aggregation pipeline 
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(videoId)
+            }
+        },
+         //Add lookup to get owner details (username, fullname, avatar)
+        {
+            $lookup:{
+                from: "users",
+                localField: "uploadBy",
+                foreignField: "_id",
+                as: "uploadBy",
 
+                pipeline:[{
+                    $project:{
+                        username:1,
+                        avatar:1
+                    }
+                }]
+            }
 
-    // Find video by _id using aggregation pipeline
+        },
+        // Add lookup to get likes
+        {
+            $lookup:{
+                from: "likes",
+                localField: "_id",
+                foreignField: "video",
+                as: "likes"
+            }
+        },
+        //Add lookup to get comments count
+        {
+            $lookup:{
+                from: "comments",
+                localField: "_id",
+                foreignField: "video",
+                as: "comments"
+            }
+        },
+        // Convert arrays to proper format
+        {
+            $addFields: {
+                likesCount: { $size: "$likes" },
+                commentsCount: { $size: "$comments" }
+            }
+        },
+        // Remove full arrays from response
+        {
+            $project: {
+                likes: 0,
+                updatedAt: 0,
+                __v: 0
+            }
+        }
+    ])
+ 
     
+    // Check if video exists, if not throw 404 error
+    if(video.length === 0){
+        throw new apiError(404, "Video not found");
+    }
+
+    // Increment views count
+    await Video.findByIdAndUpdate(videoId, {$inc: {views: 1}});
 
 
-    // 3. Add lookup to get owner details (username, fullname, avatar)
-    // 4. Add lookup to get likes count
-    // 5. Add lookup to get comments count
-    // 6. Check if video exists, if not throw 404 error
-    // 7. Increment views count by 1
-    // 8. Add video to user's watch history (req.user._id)
-    // 9. Return video with all details
+    //Add video to user's watch history (req.user._id)
+    const userId = req.user._id;
+    await mongoose.model("User").findByIdAndUpdate(userId, {
+        $addToSet: {watchHistory: videoId}
+    });
+
+    //Return response with video details
+    return res.status(200).json(new apiResponse(200, "Video fetched successfully", {video: video[0]}));
+
 })
 
 const updateVideo = asyncHandler(async (req, res) => {
