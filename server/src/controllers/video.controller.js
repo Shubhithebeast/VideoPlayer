@@ -3,13 +3,13 @@ import {Video} from "../models/video.model.js"
 import { apiError } from "../utils/apiError.js"
 import {apiResponse} from "../utils/apiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
-import {uploadOnCloudinary} from "../utils/cloudinary.js"
+import {deleteFromCloudinary, extractPublicIdFromUrl, uploadOnCloudinary} from "../utils/cloudinary.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
     
-    // TODO: get all videos based on query, sort, pagination
+    //get all videos based on query, sort, pagination
     //Parse and validate query parameters
     const pageNumber = parseInt(page, 10);
     const limitNumber = Math.min(parseInt(limit, 10) || 10, 50);
@@ -114,7 +114,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
 const publishVideo = asyncHandler(async (req, res) => {
     
-    // TODO: get video, upload to cloudinary, create video
+    //  get video, upload to cloudinary, create video
     //Validate required fields (title, description)
     const {title, description} = req.body;
     if(!title || !description){
@@ -264,47 +264,115 @@ const getVideoById = asyncHandler(async (req, res) => {
 const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     
-    // TODO: update video details like title, description, thumbnail
-    // 1. Validate videoId (check if it's a valid MongoDB ObjectId)
-    // 2. Get title and description from req.body
-    // 3. Check if at least one field is provided to update
-    // 4. Find video by _id
-    // 5. Check if video exists, if not throw 404 error
-    // 6. Verify video owner is same as logged in user (req.user._id)
-    // 7. If new thumbnail file is provided:
-    //    - Get thumbnail local path from req.file
-    //    - Delete old thumbnail from Cloudinary (extract publicId from URL)
-    //    - Upload new thumbnail to Cloudinary
-    //    - Update thumbnail URL
-    // 8. Update title and description if provided
-    // 9. Save updated video document
-    // 10. Return updated video details
+    // update video details like title, description, thumbnail
+    if(!mongoose.isValidObjectId(videoId)){
+        throw new apiError(400, "Invalid video ID");
+    }
+
+    const { title, description } = req.body;
+    if(!title && !description && !req.file){
+        throw new apiError(400, "At least one field (title, description, thumbnail) is required to update");
+    }
+    
+    const video = await Video.findById(videoId);
+    if(!video){
+        throw new apiError(404, "Video not found");
+    }
+
+    const thumbnailLocalPath = req.file?.path;
+    if(thumbnailLocalPath){
+        // Delete old thumbnail from Cloudinary
+        const oldThumbnailPublicId = extractPublicIdFromUrl(video.thumbnail);
+        if(oldThumbnailPublicId){
+            try{
+                await deleteFromCloudinary(oldThumbnailPublicId, "image");
+                console.log("Old thumbnail deleted from Cloudinary");
+            }catch(error){
+                console.error("Error deleting old thumbnail from Cloudinary:", error);
+            }
+        }else{
+            console.error("Could not extract public ID from old thumbnail URL");
+        }
+        // Upload new thumbnail to Cloudinary
+        const newThumbnail = await uploadOnCloudinary(thumbnailLocalPath);
+        if(!newThumbnail.url){
+            throw new apiError(500, "Failed to upload new thumbnail image");
+        }
+        video.thumbnail = newThumbnail.url;
+    }else if(description){
+        video.description = description;
+    }else{
+        video.title = title;
+    }
+
+
+    //Save updated video document
+    const updatedVideo = await video.save();
+
+    return res.status(200).json(new apiResponse(200, "Video updated successfully", {video: updatedVideo}));
 })
 
 const deleteVideo = asyncHandler(async (req, res) => {
-    const { videoId } = req.params
-    
-    // TODO: delete video
-    // 1. Validate videoId (check if it's a valid MongoDB ObjectId)
-    // 2. Find video by _id
-    // 3. Check if video exists, if not throw 404 error
-    // 4. Verify video owner is same as logged in user (req.user._id)
-    // 5. Extract publicId from video URL
-    // 6. Extract publicId from thumbnail URL
-    // 7. Delete video file from Cloudinary
-    // 8. Delete thumbnail from Cloudinary
-    // 9. Delete all likes associated with this video
-    // 10. Delete all comments associated with this video
-    // 11. Remove video from all playlists
-    // 12. Remove video from all users' watch history
-    // 13. Delete video document from database
-    // 14. Return success response
+    const { videoId } = req.params;
+
+    if (!mongoose.isValidObjectId(videoId)) {
+        throw new apiError(400, "Invalid video ID");
+    }
+
+    const video = await Video.findById(videoId);
+    if (!video) {
+        throw new apiError(404, "Video not found");
+    }
+
+    // Cloudinary delete (non-transactional)
+    try {
+        const thumbnailPublicId = extractPublicIdFromUrl(video.thumbnail);
+        const videoPublicId = extractPublicIdFromUrl(video.video);
+        await deleteFromCloudinary(videoPublicId, "video");
+        await deleteFromCloudinary(thumbnailPublicId, "image");
+        console.log("Video and thumbnail deleted from Cloudinary");
+    } catch (err) {
+        console.error("Cloudinary delete failed:", err);
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        await mongoose.model("Like").deleteMany({ video: videoId }, { session });
+        await mongoose.model("Comment").deleteMany({ video: videoId }, { session });
+
+        await mongoose.model("Playlist").updateMany(
+            { videos: videoId },
+            { $pull: { videos: videoId } },
+            { session }
+        );
+
+        await mongoose.model("User").updateMany(
+            {},
+            { $pull: { watchHistory: videoId } },
+            { session }
+        );
+
+        await Video.findByIdAndDelete(videoId, { session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return res.status(200).json(
+            new apiResponse(200, "Video deleted successfully")
+        );
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        throw new apiError(500, "An error occurred while deleting the video");
+    }
 })
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     
-    // TODO: toggle publish status
+    //  toggle publish status
     // 1. Validate videoId (check if it's a valid MongoDB ObjectId)
     // 2. Find video by _id
     // 3. Check if video exists, if not throw 404 error

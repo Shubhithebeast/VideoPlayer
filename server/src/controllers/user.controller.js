@@ -314,7 +314,7 @@ const updateUserAvatar = asyncHandler(async (req, res, next) => {
         const oldAvatarPublicId = extractPublicIdFromUrl(currentUser.avatar);
         if(oldAvatarPublicId){
             try{
-                await deleteFromCloudinary(oldAvatarPublicId);
+                await deleteFromCloudinary(oldAvatarPublicId, "image");
                 console.log("Old avatar deleted from Cloudinary");
             }catch(error){
                 console.error("Error deleting old avatar from Cloudinary:", error);
@@ -363,7 +363,7 @@ const updateUserCoverImage = asyncHandler(async (req, res, next) => {
         const oldCoverImagePublicId = extractPublicIdFromUrl(currentUser.coverImage);
         if(oldCoverImagePublicId){
             try{
-                await deleteFromCloudinary(oldCoverImagePublicId);  
+                await deleteFromCloudinary(oldCoverImagePublicId, "image");  
                 console.log("Old cover image deleted from Cloudinary");
             }catch(error){
                 console.error("Error deleting old cover image from Cloudinary:", error);

@@ -35,14 +35,14 @@ const uploadOnCloudinary = async (localFilePath) => {
     }
 };
 
-const deleteFromCloudinary = async (publicId) => {
+const deleteFromCloudinary = async (publicId, type) => {
     try {
 
         if(!publicId){
             throw new Error("Public ID is required..");
         }
 
-        const deleteResult = await cloudinary.uploader.destroy(publicId, {resource_type: "image"});
+        const deleteResult = await cloudinary.uploader.destroy(publicId, {resource_type: type || "image"});
         return deleteResult;
 
         

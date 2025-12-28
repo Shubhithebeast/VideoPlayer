@@ -299,6 +299,30 @@ npm run format  # If prettier script is configured
 - Automatic reconnection on connection loss
 - Database name: `youtubeDB`
 
+## Key Technical Implementations:
+
+### Performance Optimizations
+1. **Aggregation Pipelines** - Complex data queries using MongoDB aggregation with `$lookup`, `$match`, `$addFields`, and `$project` stages for efficient data retrieval
+2. **Pagination Plugin** - Implemented `mongoose-aggregate-paginate-v2` for scalable pagination on large datasets (videos, comments)
+3. **Index-Based Searching** - Database indexes on `test`,and `description` fields for faster query performance
+4. **Selective Field Projection** - Using `$project` to exclude unnecessary fields (`__v`, `updatedAt`) reducing response payload size
+
+### Architecture & Best Practices
+5. **Async Error Handling** - Custom `asyncHandler` wrapper eliminating try-catch repetition across controllers
+6. **Standardized API Responses** - Consistent response format using `apiResponse` and `apiError` utility classes
+7. **JWT Token Strategy** - Dual token system (access & refresh tokens) with HTTP-only cookies for enhanced security
+8. **Middleware Pipeline** - Modular authentication (`verifyJWT`) and file upload (`multer`) middleware for separation of concerns
+
+### Data Management
+9. **Cloud Storage Integration** - Cloudinary for media storage with automatic local file cleanup preventing disk space issues
+10. **Schema Validation** - Mongoose schema-level validation with required fields, unique constraints, and data types
+11. **Computed Fields** - Dynamic aggregation fields like `likesCount`, `commentsCount`, `subscribersCount` calculated at query time
+12. **Nested Pipelines in Lookups** - Sub-pipelines within `$lookup` stages for precise data population and projection
+
+### Database Design
+13. **Reference-Based Relations** - ObjectId references between User, Video, Subscription models for normalized data structure
+15. **Conditional Aggregation** - Dynamic query building based on optional filters (userId, search query, sort parameters)
+
 ### File Upload Flow
 1. Client uploads file via multipart/form-data
 2. Multer saves file to `./public/temp`
