@@ -143,7 +143,7 @@ const publishVideo = asyncHandler(async (req, res) => {
     if(localThumbnailPath){
         uploadThumbnail = await uploadOnCloudinary(localThumbnailPath);
         if(!uploadThumbnail?.secure_url){
-            console.error("Failed to upload thumbnail to Cloudinary");
+            logger.error("Failed to upload thumbnail to Cloudinary");
         }
     }
 
@@ -286,12 +286,12 @@ const updateVideo = asyncHandler(async (req, res) => {
         if(oldThumbnailPublicId){
             try{
                 await deleteFromCloudinary(oldThumbnailPublicId, "image");
-                console.log("Old thumbnail deleted from Cloudinary");
+                logger.info("Old thumbnail deleted from Cloudinary");
             }catch(error){
-                console.error("Error deleting old thumbnail from Cloudinary:", error);
+                logger.error("Error deleting old thumbnail from Cloudinary:", error);
             }
         }else{
-            console.error("Could not extract public ID from old thumbnail URL");
+            logger.error("Could not extract public ID from old thumbnail URL");
         }
         // Upload new thumbnail to Cloudinary
         const newThumbnail = await uploadOnCloudinary(thumbnailLocalPath);
@@ -330,9 +330,9 @@ const deleteVideo = asyncHandler(async (req, res) => {
         const videoPublicId = extractPublicIdFromUrl(video.video);
         await deleteFromCloudinary(videoPublicId, "video");
         await deleteFromCloudinary(thumbnailPublicId, "image");
-        console.log("Video and thumbnail deleted from Cloudinary");
+        logger.info("Video and thumbnail deleted from Cloudinary");
     } catch (err) {
-        console.error("Cloudinary delete failed:", err);
+        logger.error("Cloudinary delete failed:", err);
     }
 
     const session = await mongoose.startSession();

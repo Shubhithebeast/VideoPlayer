@@ -5,6 +5,7 @@ import { deleteFromCloudinary, extractPublicIdFromUrl, uploadOnCloudinary } from
 import { apiResponse } from "../utils/apiResponse.js";
 import jwt from 'jsonwebtoken';
 import mongoose from "mongoose";
+import logger from "../utils/logger.js";
 
 const generateAccessAndRefreshTokens = async(userid) => {
     try{
@@ -315,12 +316,12 @@ const updateUserAvatar = asyncHandler(async (req, res, next) => {
         if(oldAvatarPublicId){
             try{
                 await deleteFromCloudinary(oldAvatarPublicId, "image");
-                console.log("Old avatar deleted from Cloudinary");
+                logger.info("Old avatar deleted from Cloudinary");
             }catch(error){
-                console.error("Error deleting old avatar from Cloudinary:", error);
+                logger.error("Error deleting old avatar from Cloudinary:", error);
             }
         }else{
-            console.error("Could not extract public ID from old avatar URL");
+            logger.error("Could not extract public ID from old avatar URL");
         }
     }
     
@@ -364,12 +365,12 @@ const updateUserCoverImage = asyncHandler(async (req, res, next) => {
         if(oldCoverImagePublicId){
             try{
                 await deleteFromCloudinary(oldCoverImagePublicId, "image");  
-                console.log("Old cover image deleted from Cloudinary");
+                logger.info("Old cover image deleted from Cloudinary");
             }catch(error){
-                console.error("Error deleting old cover image from Cloudinary:", error);
+                logger.error("Error deleting old cover image from Cloudinary:", error);
             }
         }else{
-            console.error("Could not extract public ID from old cover image URL");
+            logger.error("Could not extract public ID from old cover image URL");
         }   
     }
 
@@ -460,8 +461,6 @@ const userChannelProfile = asyncHandler(async (req, res, next) => {
     if(!channel?.length){
         throw new apiError(404, "channel doesn't exist");
     }
-
-    console.log("Channel profile fetched:", channel[0]);
 
     return res
     .status(200)

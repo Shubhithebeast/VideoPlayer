@@ -16,18 +16,19 @@ dotenv.config({
 
 import connectDB from './database/db.js';
 import {app} from './app.js';
+import logger from './utils/logger.js';
  
 connectDB().then(() => {
     app.on("error", (error) => {
-        console.log('Error in server😥:', error);
+        logger.error('Error in server:', error);
         throw error;
     });
     app.listen(process.env.PORT || 8000 , () => {
-        console.log(`🚀 Server is running at http://localhost:${process.env.PORT}/api/v1/healthcheck/liveness`);
+        logger.info(`🚀 Server is running at http://localhost:${process.env.PORT}/api/v1/healthcheck/liveness`);
     });
     
 }).catch((error) => {
-    console.log('Failed to connect to the database:', error);
+    logger.error('Failed to connect to the database:', error);
     process.exit(1);
 });   
 
@@ -39,17 +40,17 @@ const app = express();
 (async () => {
     try{
         await mongoose.connect(`${process.env.MONGODB_URL}/${DB_NAME}`)
-        console.log('Connected to MongoDB successfully😊...');
+        logger.info('Connected to MongoDB successfully');
         app.on("error", (error) => {
-            console.log('Error in server😥:', error);
+            logger.error('Error in server:', error);
             throw error;
         });
 
         app.listen(process.env.PORT, () => {
-            console.log(`Server is running on port ${process.env.PORT}🚀...`);
+            logger.info(`Server is running on port ${process.env.PORT}`);
         });
     }catch(error){
-        console.log('Error connecting to MongoDB😥:', error);
+        logger.error('Error connecting to MongoDB:', error);
         throw error;
     }
 })()
