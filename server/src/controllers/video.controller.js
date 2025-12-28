@@ -371,15 +371,19 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
-    
-    //  toggle publish status
-    // 1. Validate videoId (check if it's a valid MongoDB ObjectId)
-    // 2. Find video by _id
-    // 3. Check if video exists, if not throw 404 error
-    // 4. Verify video owner is same as logged in user (req.user._id)
-    // 5. Toggle isPublished field (true -> false or false -> true)
-    // 6. Save updated video document
-    // 7. Return updated video with new publish status
+
+    if(!mongoose.isValidObjectId(videoId)){
+        throw new apiError(400, "Invalid video ID");
+    }
+    const video = await Video.findById(videoId);
+    if(!video){
+        throw new apiError(404, "Video not found");
+    }
+    video.isPublished = !video.isPublished;
+    const updatedVideo = await video.save();
+
+    logger.info(`Video publish status toggled. Video ID: ${videoId}, New Status: ${updatedVideo.isPublished}`);
+    return res.status(200).json(new apiResponse(200, "Video publish status toggled successfully", {video: updatedVideo}));
 })
 
 export {
