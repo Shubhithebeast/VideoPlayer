@@ -4,6 +4,7 @@ import { apiError } from "../utils/apiError.js"
 import {apiResponse} from "../utils/apiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 import logger from "../utils/logger.js"
+import { Video } from './../models/video.model.js';
 
 const getVideoComments = asyncHandler(async (req, res) => {
     // get all comments for a video
@@ -82,41 +83,95 @@ const getVideoComments = asyncHandler(async (req, res) => {
 
 const addComment = asyncHandler(async (req, res) => {
     // add a comment to a video
+
     // 1. Get videoId from req.params
-    // 2. Get content from req.body
-    // 3. Validate videoId (check if it's a valid MongoDB ObjectId)
-    // 4. Validate content (check if it's not empty, trim whitespace)
-    // 5. Check if video exists in database
-    // 6. Get logged in user ID from req.user._id
-    // 7. Create new comment document with: content, video (videoId), owner (userId)
-    // 8. Save comment to database
-    // 9. Return success response with created comment
+    const {videoId} = req.params;
+    const {content} = req.body;
+
+    if(!mongoose.isValidObjectId(videoId)){
+        throw new apiError(400, "Invalid video ID");
+    }
+    if(!content || content.trim() === ""){
+        throw new apiError(400, "Comment content cannot be empty");
+    }
+
+    const userId = req.user._id;
+
+    // Check if video exists 
+    const video = await Video.findById(videoId);
+    if(!video){
+        throw new apiError(404, "Video not found");
+    }
+
+    // Create new comment document with: content, video (videoId), owner (userId)
+    const newComment = new Comment({
+        content: content.trim(),
+        video: videoId,
+        owner: userId
+    });
+
+    await newComment.save();
+
+    return res.status(201).json(
+        new apiResponse(201, newComment, "Comment added successfully")
+    );
 })
 
 const updateComment = asyncHandler(async (req, res) => {
-    // update a comment
-    // 1. Get commentId from req.params
-    // 2. Get new content from req.body
-    // 3. Validate commentId (check if it's a valid MongoDB ObjectId)
-    // 4. Validate content (check if it's not empty, trim whitespace)
-    // 5. Find comment by _id
-    // 6. Check if comment exists, if not throw 404 error
-    // 7. Verify comment owner is same as logged in user (req.user._id)
-    // 8. Update comment content
-    // 9. Save updated comment
-    // 10. Return success response with updated comment
+   
+    const {commentId} = req.params;
+    const {content} = req.body;
+
+    if(!mongoose.isValidObjectId(commentId)){
+        throw new apiError(400, "Invalid comment ID");
+    }
+    if(!content || content.trim() === ""){
+        throw new apiError(400, "Comment content cannot be empty");
+    }
+
+    const userId = req.user._id;
+
+    const comment = await Comment.findById(commentId);
+    if(!comment){
+        throw new apiError(404, "Comment not found");
+    }
+
+    if(comment.owner.toString() !== userId.toString()){
+        throw new apiError(403, "You are not authorized to update this comment");
+    }
+    comment.content = content.trim();
+    await comment.save();
+
+    return res.status(200).json(
+        new apiResponse(200, comment, "Comment updated successfully")
+    );
+  
 })
 
 const deleteComment = asyncHandler(async (req, res) => {
-    // delete a comment
-    // 1. Get commentId from req.params
-    // 2. Validate commentId (check if it's a valid MongoDB ObjectId)
-    // 3. Find comment by _id
-    // 4. Check if comment exists, if not throw 404 error
-    // 5. Verify comment owner is same as logged in user (req.user._id)
-    // 6. Delete all likes associated with this comment
-    // 7. Delete comment from database
-    // 8. Return success response
+
+    const {commentId} = req.params;
+
+    if(!mongoose.isValidObjectId(commentId)){
+        throw new apiError(400, "Invalid comment ID");
+    }
+    const userId = req.user._id;
+    const comment = await Comment.findById(commentId);
+    if(!comment){
+        throw new apiError(404, "Comment not found");
+    }
+
+    if(comment.owner.toString() !== userId.toString()){
+        throw new apiError(403, "You are not authorized to delete this comment");
+    }
+    // Delete all likes associated with this comment
+    await mongoose.model("Like").deleteMany({comment: comment._id});
+    await comment.deleteOne();
+
+    return res.status(200).json(
+        new apiResponse(200, null, "Comment deleted successfully")
+    );
+
 })
 
 export {
