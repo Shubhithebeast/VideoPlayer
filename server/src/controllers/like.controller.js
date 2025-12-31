@@ -121,7 +121,7 @@ const getLikedVideos = asyncHandler(async (req, res) => {
     const {page = 1, limit = 10} = req.query;
 
     const pageNumber = parseInt(page, 10);
-    const limitNumber = Math.min(parseInt(limit, 10), 10,50);
+    const limitNumber = Math.min(parseInt(limit, 10) || 10, 50);
 
     const userId = req.user._id;
 
@@ -176,7 +176,7 @@ const getLikedVideos = asyncHandler(async (req, res) => {
             $unwind: "$videoDetails"    
         },
         {
-            $sort: { createdAt: -1 } // Sort by like creation date (most recent first)
+            $sort: { createdAt: -1 } 
         }
     ])
 
@@ -188,7 +188,20 @@ const getLikedVideos = asyncHandler(async (req, res) => {
     const likedVideos = await Like.aggregatePaginate(aggregateQuery, options);
 
     return res.status(200).json(
-        new apiResponse(200, likedVideos, "Liked videos fetched successfully")
+        new apiResponse(200, "Liked videos fetched successfully",
+            {
+                likedVideos: likedVideos.docs,
+                pagination: {
+                    totalDocs: likedVideos.totalDocs,
+                    totalPages: likedVideos.totalPages,
+                    currentPage: likedVideos.page,
+                    limit: likedVideos.limit,
+                    hasNextPage: likedVideos.hasNextPage,
+                    hasPrevPage: likedVideos.hasPrevPage,
+                    prevPage: likedVideos.prevPage,
+                    nextPage: likedVideos.nextPage
+                }
+            })
     );
 
     // get all liked videos

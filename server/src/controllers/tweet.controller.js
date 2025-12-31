@@ -4,56 +4,170 @@ import {User} from "../models/user.model.js"
 import { apiError } from "../utils/apiError.js"
 import {apiResponse} from "../utils/apiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
+import logger from "../utils/logger.js"
 
 const createTweet = asyncHandler(async (req, res) => {
-    // create tweet
-    // 1. Get content from req.body
-    // 2. Validate content (required, not empty, max 280 characters)
-    // 3. Get logged in user ID from req.user._id
-    // 4. Create new tweet document with: content, owner (userId)
-    // 5. Save tweet to database
-    // 6. Return success response with created tweet
+
+    const {tweet} = req.body;
+    if(!tweet || tweet.trim().length === 0){
+        throw new apiError(400, 'Tweet content is required');
+    }
+
+    if(tweet.length > 280){
+        throw new apiError(400, 'Tweet content exceeds maximum length of 280 characters');
+    }
+
+    const userId = req.user._id;
+
+    const newTweet = new Tweet({
+        content: tweet,
+        owner: userId
+    });
+    await newTweet.save();
+
+    // Populate owner details (username, avatar) without aggregation pipeline
+    await newTweet.populate('owner', 'username avatar');
+
+    logger.info(`New tweet created by user ${userId}: ${newTweet._id}`);
+     return res.status(201).json(new apiResponse(true, 'Tweet created successfully', {tweet: newTweet}));
 })
 
 const getUserTweets = asyncHandler(async (req, res) => {
-    // get user tweets
-    // 1. Get userId from req.params
-    // 2. Get pagination parameters from req.query (page, limit)
-    // 3. Validate userId (check if it's a valid MongoDB ObjectId)
-    // 4. Check if user exists in database
-    // 5. Build aggregation pipeline:
-    //    - Match tweets by owner (userId)
-    //    - Lookup owner details (username, avatar)
-    //    - Lookup likes count for each tweet
-    //    - Sort by createdAt (newest first)
-    // 6. Use Tweet.aggregatePaginate() for pagination
-    // 7. Return success response with paginated tweets
+
+    const {page =1, limit=10} = req.query;
+    
+    const pageCount = parseInt(page, 10);
+    const limitNumber = Math.min(parseInt(limit, 10) || 10, 50);
+    
+    const userId = req.params.userId;
+
+    if(!await User.exists({_id: userId})){
+        throw new apiError(404, 'User not found');
+    }
+
+    const aggregatePipeline = [
+        {
+            $match: {owner: new mongoose.Types.ObjectId(userId)}
+        },
+        {
+            $lookup:{
+                from:"users",
+                localField:"owner",
+                foreignField:"_id",
+                as:"ownerDetails",
+                pipeline:[
+                    {
+                        $project:{
+                            username:1,
+                            avatar:1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $lookup:{
+                from:"likes",
+                localField:"tweet",
+                foreignField:"_id",
+                as:"likes",
+            }
+        },
+        {
+            $addFields:{
+                likesCount:{$size:"$likes"}
+            }
+        },
+        {
+            $project:{
+                __v:0,
+                likes:0
+            }
+        },
+        { $sort: {createdAt: -1} }
+    ];
+
+    const options = {
+        page: pageCount,
+        limit: limitNumber
+    };
+
+    const tweets = await Tweet.aggregatePaginate(
+        Tweet.aggregate(aggregatePipeline),
+        options
+    );
+
+    return res.status(200).json(new apiResponse(true, 'User tweets fetched successfully', 
+        {
+            tweets: tweets.docs,
+            pagination :{
+                totalDocs: tweets.totalDocs,
+                totalPages: tweets.totalPages,
+                currentPage: tweets.page,
+                limit: tweets.limit,
+                hasNextPage: tweets.hasNextPage,
+                hasPrevPage: tweets.hasPrevPage,
+                prevPage: tweets.prevPage,
+                nextPage: tweets.nextPage
+            }
+        }));
 })
 
 const updateTweet = asyncHandler(async (req, res) => {
-    // update tweet
-    // 1. Get tweetId from req.params
-    // 2. Get new content from req.body
-    // 3. Validate tweetId (check if it's a valid MongoDB ObjectId)
-    // 4. Validate content (not empty, max 280 characters)
-    // 5. Find tweet by _id
-    // 6. Check if tweet exists, if not throw 404 error
-    // 7. Verify tweet owner is same as logged in user (req.user._id)
-    // 8. Update tweet content
-    // 9. Save updated tweet
-    // 10. Return success response with updated tweet
+
+    const {tweetId} = req.params;
+    const {content} = req.body;
+
+    if(!mongoose.isValidObjectId(tweetId)){
+        throw new apiError(400, 'Invalid tweet ID');
+    }
+
+    if(!content || content.trim().length === 0){
+        throw new apiError(400, 'Tweet content is required');
+    }
+    if(content.length > 280){
+        throw new apiError(400, 'Tweet content exceeds maximum length of 280 characters');
+    }
+    const tweet = await Tweet.findById(tweetId);
+    if(!tweet){
+        throw new apiError(404, 'Tweet not found');
+    }
+
+    if(tweet.owner.toString() !== req.user._id.toString()){
+        throw new apiError(403, 'You are not authorized to update this tweet');
+    }
+
+    tweet.content = content;
+    await tweet.save();
+
+    logger.info(`Tweet ${tweetId} updated by user ${req.user._id}`);
+    return res.status(200).json(new apiResponse(true, 'Tweet updated successfully', {tweet}));
+
 })
 
 const deleteTweet = asyncHandler(async (req, res) => {
-    // delete tweet
-    // 1. Get tweetId from req.params
-    // 2. Validate tweetId (check if it's a valid MongoDB ObjectId)
-    // 3. Find tweet by _id
-    // 4. Check if tweet exists, if not throw 404 error
-    // 5. Verify tweet owner is same as logged in user (req.user._id)
-    // 6. Delete all likes associated with this tweet
-    // 7. Delete tweet from database
-    // 8. Return success response
+
+    const {tweetId} = req.params;
+
+    if(!isValidObjectId(tweetId)){
+        throw new apiError(400, 'Invalid tweet ID');
+    }
+
+    const tweet = await Tweet.findById(tweetId);
+    if(!tweet){
+        throw new apiError(404, 'Tweet not found');
+    }
+
+    if(tweet.owner.toString() !== req.user._id.toString()){
+        throw new apiError(403, 'You are not authorized to delete this tweet');
+    }
+
+    await mongoose.model("Like").deleteMany({tweet: tweetId});
+    await Tweet.deleteOne({_id: tweetId});
+
+    logger.info(`Tweet ${tweetId} deleted by user ${req.user._id}`);
+    return res.status(200).json(new apiResponse(true, 'Tweet deleted successfully'));
+
 })
 
 export {
