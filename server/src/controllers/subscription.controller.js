@@ -4,28 +4,54 @@ import { Subscription } from "../models/subscription.model.js"
 import { apiError } from "../utils/apiError.js"
 import {apiResponse} from "../utils/apiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
+import logger from "../utils/logger.js"
 
 
 const toggleSubscription = asyncHandler(async (req, res) => {
     const {channelId} = req.params
-    
-    // toggle subscription
-    // 1. Validate channelId (check if it's a valid MongoDB ObjectId)
-    // 2. Check if channel (user) exists in database
-    // 3. Get logged in user ID from req.user._id (subscriber)
-    // 4. Check if user is trying to subscribe to their own channel (prevent self-subscription)
-    // 5. Check if subscription already exists (find by subscriber and channel)
-    // 6. If subscription exists:
-    //    - Delete the subscription (unsubscribe)
-    //    - Return response: "Unsubscribed successfully"
-    // 7. If subscription doesn't exist:
-    //    - Create new subscription with: subscriber (userId), channel (channelId)
-    //    - Return response: "Subscribed successfully"
+
+    if(!mongoose.isValidObjectId(channelId)){
+        throw new apiError(400, 'Invalid channel ID');
+    }
+
+    const channelUser = await User.findById(channelId);
+    if(!channelUser){
+        throw new apiError(404, 'Channel (user) not found');
+    }
+
+    const subscriberId = req.user._id;
+
+    if(subscriberId.toString() === channelId.toString()){
+        throw new apiError(400, 'You cannot subscribe to your own channel');
+    }
+
+    const existingSubscription = await Subscription.findOne({
+        subscriber: subscriberId,
+        channel: channelId
+    });
+
+    if(existingSubscription){
+        // Unsubscribe
+        await Subscription.deleteOne({_id: existingSubscription._id});
+        logger.info(`User ${subscriberId} unsubscribed from channel ${channelId}`);
+        return res.status(200).json(new apiResponse(true, 'Unsubscribed successfully'));
+    }
+
+    // Subscribe
+    const newSubscription = new Subscription({
+        subscriber: subscriberId,
+        channel: channelId
+    });
+    await newSubscription.save();
+    logger.info(`User ${subscriberId} subscribed to channel ${channelId}`);
+    return res.status(201).json(new apiResponse(true, 'Subscribed successfully'));
 })
 
 // controller to return subscriber list of a channel
 const getUserChannelSubscribers = asyncHandler(async (req, res) => {
     const {channelId} = req.params
+
+
     
     // get all subscribers of a channel
     // 1. Validate channelId (check if it's a valid MongoDB ObjectId)
