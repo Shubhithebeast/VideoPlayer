@@ -4,9 +4,28 @@ const app = express();
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 
+const defaultDevOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
+const configuredOrigins = (process.env.CORS_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const allowedOrigins = configuredOrigins.length > 0 ? configuredOrigins : defaultDevOrigins;
+
 app.use(cors({
-    origin:process.env.CORS_ORIGIN,
-    credentials:true
+    origin: (origin, callback) => {
+        // Allow non-browser clients (Postman/cURL) and same-origin requests
+        if (!origin) {
+            return callback(null, true);
+        }
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true
 }));
 
 app.use(express.json({limit:'20kb'}));

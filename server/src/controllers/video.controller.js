@@ -4,6 +4,7 @@ import { apiError } from "../utils/apiError.js"
 import {apiResponse} from "../utils/apiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 import {deleteFromCloudinary, extractPublicIdFromUrl, uploadOnCloudinary} from "../utils/cloudinary.js"
+import logger from "../utils/logger.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -137,7 +138,7 @@ const publishVideo = asyncHandler(async (req, res) => {
 
     // Check if thumbnail file is present in req.files
     const localThumbnailPath = req.files?.thumbnail?.[0]?.path;
-    const uploadThumbnail = {};
+    let uploadThumbnail = null;
  
     // Upload thumbnail to Cloudinary
     if(localThumbnailPath){
@@ -148,7 +149,7 @@ const publishVideo = asyncHandler(async (req, res) => {
     }
 
     // if thumbnail not provided, generate thumbnail URL from video URL
-    const thumbnailUrl = uploadThumbnail.secure_url || uploadVideo.secure_url.replace(/\.(mp4|mov|avi|mkv)$/i,".jpg");
+    const thumbnailUrl = uploadThumbnail?.secure_url || uploadVideo.secure_url.replace(/\.(mp4|mov|avi|mkv)$/i,".jpg");
 
 
     // Get video duration from Cloudinary response
@@ -246,15 +247,22 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new apiError(404, "Video not found");
     }
 
-    // Increment views count
-    await Video.findByIdAndUpdate(videoId, {$inc: {views: 1}});
-
-
-    //Add video to user's watch history (req.user._id)
+    // Increment views only on first watch by this user.
+    // This prevents view inflation on page refresh/back navigation/like-refresh calls.
     const userId = req.user._id;
-    await mongoose.model("User").findByIdAndUpdate(userId, {
-        $addToSet: {watchHistory: videoId}
+    const alreadyWatched = await mongoose.model("User").exists({
+        _id: userId,
+        watchHistory: videoId
     });
+
+    if(!alreadyWatched){
+        await Promise.all([
+            Video.findByIdAndUpdate(videoId, {$inc: {views: 1}}),
+            mongoose.model("User").findByIdAndUpdate(userId, {
+                $addToSet: {watchHistory: videoId}
+            })
+        ]);
+    }
 
     //Return response with video details
     return res.status(200).json(new apiResponse(200, "Video fetched successfully", {video: video[0]}));

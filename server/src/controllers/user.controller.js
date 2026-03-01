@@ -85,7 +85,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
 
     // upload images to cloudinary, avatar is mandatory
     const avatar = await uploadOnCloudinary(avatarLocalPath);
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+    const coverImage = coverImageLocalPath ? await uploadOnCloudinary(coverImageLocalPath) : null;
 
     if(!avatar){
         throw new apiError(500, "Failed to upload avatar image");
@@ -123,21 +123,38 @@ const registerUser = asyncHandler(async (req, res, next) => {
 
 const loginUser = asyncHandler(async (req, res, next) => {
     // get login data from request body
-    const {email, username, password} = req.body;
-    if(!password && !(username || email)){
+    const { email, username, password } = req.body;
+
+    const normalizedEmail = email?.trim()?.toLowerCase();
+    const normalizedUsername = username?.trim()?.toLowerCase();
+    const normalizedPassword = password?.trim();
+
+    if(!normalizedPassword){
+        throw new apiError(400, "Password is required for login");
+    }
+
+    if(!(normalizedUsername || normalizedEmail)){
         throw new apiError(400, "Email or username is required for login");
     }
 
     // login through email or username
     // find user in db
-    const user =  await User.findOne({ $or: [{email}, {username}] });
+    const loginIdentifiers = [];
+    if(normalizedEmail){
+        loginIdentifiers.push({ email: normalizedEmail });
+    }
+    if(normalizedUsername){
+        loginIdentifiers.push({ username: normalizedUsername });
+    }
+
+    const user = await User.findOne({ $or:loginIdentifiers });
     if(!user){
         throw new apiError(404, "Invalid user credentials");
     }
 
 
     // compare password
-    const isPasswordValid =  await user.isPasswordCorrect(password);
+    const isPasswordValid = await user.isPasswordCorrect(normalizedPassword);
     if(!isPasswordValid){
         throw new apiError(404, "Invalid user credentials");
     }

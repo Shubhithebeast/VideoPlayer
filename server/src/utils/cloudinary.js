@@ -17,20 +17,25 @@ cloudinary.config({
 // });
 
 const uploadOnCloudinary = async (localFilePath) => {
-    try{
+    const safeCleanup = (filePath) => {
+        if (typeof filePath === "string" && filePath && fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+    };
 
+    try{
         if(!localFilePath){
-            throw new Error("File path is required");
+            return null;
         }
         const uploadResult = await cloudinary.uploader.upload(localFilePath,{
             resource_type: "auto"
         });
 
         // console.log("File Uploaded successfully:", uploadResult.url);
-        fs.unlinkSync(localFilePath); // Delete the local file after upload
+        safeCleanup(localFilePath); // Delete the local file after upload
         return uploadResult;
     }catch(error){
-        fs.unlinkSync(localFilePath); // Delete the local file
+        safeCleanup(localFilePath); // Delete the local file when present
         logger.error("Error uploading file to Cloudinary:", { error: error.message });
         throw error;
     }

@@ -60,3 +60,7 @@ jspm_packages/
 
 # Optional local data
 sampleData/
+
+# Seed generated artifacts
+server/src/seeds/SEED_USERS.md
+server/src/seeds/
