@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { extractList, videoApi } from "../api";
 
 function videoOwner(video) {
@@ -7,11 +8,13 @@ function videoOwner(video) {
 }
 
 export default function HomePage() {
+  const location = useLocation();
   const [videos, setVideos] = useState([]);
-  const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const query = new URLSearchParams(location.search).get("q") || "";
 
   useEffect(() => {
     let mounted = true;
@@ -50,9 +53,7 @@ export default function HomePage() {
         <div>
           <p className="eyebrow">Discover</p>
           <h2>Home Feed</h2>
-        </div>
-        <div className="searchbox">
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by title/description" />
+          {query ? <p className="muted">Search results for "{query}"</p> : null}
         </div>
       </div>
 

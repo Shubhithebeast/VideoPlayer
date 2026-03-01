@@ -103,6 +103,9 @@ export const authApi = {
   },
   updateCover(formData) {
     return request("post", "/users/coverImage", { data: formData });
+  },
+  changePassword(formData) {
+    return request("post", "/users/changePassword", { data: formData });
   }
 };
 

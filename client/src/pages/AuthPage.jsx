@@ -58,7 +58,7 @@ export default function AuthPage() {
     <div className="auth-page">
       <section className="auth-card">
         <p className="eyebrow">Welcome</p>
-        <h2>Video Platform Frontend</h2>
+        <h2>StreamX</h2>
         <p className="muted">Sign in to browse videos, upload content, comment, and manage your channel.</p>
 
         <div className="tabs">

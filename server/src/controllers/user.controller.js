@@ -291,20 +291,64 @@ const changeCurrentUserPassword = asyncHandler(async (req, res, next) => {
 
 const updateAccountDetails = asyncHandler(async (req, res, next) => {
     
-    const {fullname, email} = req.body;
+    const { fullname, email, username } = req.body;
 
-    if(!fullname || !email){
-        throw new apiError(400, "Fullname and email are required");
+    const updateFields = {};
+
+    if(fullname !== undefined){
+        const normalizedFullname = fullname?.trim();
+        if(!normalizedFullname){
+            throw new apiError(400, "Fullname cannot be empty");
+        }
+        updateFields.fullname = normalizedFullname;
     }
 
-    const user = await User.findByIdAndUpdate(req.user._id,
-        {
-            $set:{
-                fullname,
-                email: email
-            }
-        },
-        {new:true}
+    if(email !== undefined){
+        const normalizedEmail = email?.trim()?.toLowerCase();
+        if(!normalizedEmail){
+            throw new apiError(400, "Email cannot be empty");
+        }
+        if(!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(normalizedEmail)){
+            throw new apiError(400, "Invalid email address");
+        }
+
+        const existingByEmail = await User.findOne({
+            email: normalizedEmail,
+            _id: { $ne: req.user._id }
+        });
+        if(existingByEmail){
+            throw new apiError(409, "Email is already in use");
+        }
+        updateFields.email = normalizedEmail;
+    }
+
+    if(username !== undefined){
+        const normalizedUsername = username?.trim()?.toLowerCase();
+        if(!normalizedUsername){
+            throw new apiError(400, "Username cannot be empty");
+        }
+        if(!/^[a-zA-Z0-9_]{3,30}$/.test(normalizedUsername)){
+            throw new apiError(400, "Invalid username. It should be 3-30 characters long and can only contain letters, numbers, and underscores.");
+        }
+
+        const existingByUsername = await User.findOne({
+            username: normalizedUsername,
+            _id: { $ne: req.user._id }
+        });
+        if(existingByUsername){
+            throw new apiError(409, "Username is already in use");
+        }
+        updateFields.username = normalizedUsername;
+    }
+
+    if(Object.keys(updateFields).length === 0){
+        throw new apiError(400, "At least one field is required to update");
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        { $set: updateFields },
+        { new: true }
     ).select("-password -refreshToken");
 
 

@@ -6,6 +6,10 @@ import HomePage from "./pages/HomePage";
 import WatchPage from "./pages/WatchPage";
 import UploadPage from "./pages/UploadPage";
 import ChannelPage from "./pages/ChannelPage";
+import HistoryPage from "./pages/HistoryPage";
+import SettingsPage from "./pages/SettingsPage";
+import FeedbackPage from "./pages/FeedbackPage";
+import AboutPage from "./pages/AboutPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 function ProtectedRoute({ children }) {
@@ -58,6 +62,10 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/watch/:videoId" element={<WatchPage />} />
         <Route path="/upload" element={<UploadPage />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/feedback" element={<FeedbackPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/channel/:username" element={<ChannelPage />} />
       </Route>
 
