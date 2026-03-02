@@ -11,6 +11,12 @@ import SettingsPage from "./pages/SettingsPage";
 import FeedbackPage from "./pages/FeedbackPage";
 import AboutPage from "./pages/AboutPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import SubscriptionsPage from "./pages/SubscriptionsPage";
+import WatchLaterPage from "./pages/WatchLaterPage";
+import PlaylistsPage from "./pages/PlaylistsPage";
+import QueuePage from "./pages/QueuePage";
+import LikedVideosPage from "./pages/LikedVideosPage";
+import YourVideosPage from "./pages/YourVideosPage";
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, bootstrapped } = useAuth();
@@ -67,6 +73,12 @@ export default function App() {
         <Route path="/feedback" element={<FeedbackPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/channel/:username" element={<ChannelPage />} />
+        <Route path="/subscriptions" element={<SubscriptionsPage />} />
+        <Route path="/watch-later" element={<WatchLaterPage />} />
+        <Route path="/playlists" element={<PlaylistsPage />} />
+        <Route path="/queue" element={<QueuePage />} />
+        <Route path="/liked-videos" element={<LikedVideosPage />} />
+        <Route path="/your-videos" element={<YourVideosPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

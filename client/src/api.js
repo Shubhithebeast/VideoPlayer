@@ -153,6 +153,9 @@ export const commentApi = {
 export const likeApi = {
   toggleVideo(videoId) {
     return request("post", `/likes/toggle/l/${videoId}`);
+  },
+  listVideos(params = {}) {
+    return request("get", "/likes/videos", { params });
   }
 };
 
@@ -174,6 +177,27 @@ export const dashboardApi = {
   },
   getVideos(params = {}) {
     return request("get", "/dashboard/videos", { params });
+  }
+};
+
+export const playlistApi = {
+  create(formData) {
+    return request("post", "/playlists", { data: formData });
+  },
+  getMyPlaylists(params = {}) {
+    return request("get", "/playlists/me", { params });
+  },
+  getById(playlistId, params = {}) {
+    return request("get", `/playlists/${playlistId}`, { params });
+  },
+  getUserPlaylists(userId, params = {}) {
+    return request("get", `/playlists/user/${userId}`, { params });
+  },
+  addVideo(videoId, playlistId) {
+    return request("patch", `/playlists/add/${videoId}/${playlistId}`);
+  },
+  removeVideo(videoId, playlistId) {
+    return request("patch", `/playlists/remove/${videoId}/${playlistId}`);
   }
 };
 

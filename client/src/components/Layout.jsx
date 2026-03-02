@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-
-const THEME_KEY = "streamx_theme";
+import { applyThemePreference, getStoredThemePreference } from "../utils/theme";
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -10,6 +9,8 @@ export default function Layout() {
   const location = useLocation();
   const [headerSearch, setHeaderSearch] = useState(new URLSearchParams(location.search).get("q") || "");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [themeMode, setThemeMode] = useState(getStoredThemePreference());
 
   const onLogout = async () => {
     await logout();
@@ -21,10 +22,28 @@ export default function Layout() {
     navigate("/auth");
   };
 
-  const toggleTheme = () => {
-    const isDark = document.body.classList.toggle("theme-dark");
-    localStorage.setItem(THEME_KEY, isDark ? "dark" : "light");
-    setMenuOpen(false);
+  useEffect(() => {
+    setHeaderSearch(new URLSearchParams(location.search).get("q") || "");
+  }, [location.search]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const onSystemThemeChange = () => {
+      if (themeMode === "system") {
+        applyThemePreference("system");
+      }
+    };
+
+    mediaQuery.addEventListener("change", onSystemThemeChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", onSystemThemeChange);
+    };
+  }, [themeMode]);
+
+  const onThemeModeChange = (event) => {
+    const selectedMode = applyThemePreference(event.target.value);
+    setThemeMode(selectedMode);
   };
 
   const onSearchSubmit = (event) => {
@@ -55,11 +74,18 @@ export default function Layout() {
   return (
     <div className="shell">
       <header className="topbar">
-        <div className="brand" onClick={() => navigate("/")} role="button" tabIndex={0}>
-          <span className="brand-mark" />
-          <div>
-            <p className="brand-kicker">Video Platform</p>
-            <h1>StreamX</h1>
+        <div className="brand-wrap">
+          <button className="sidebar-toggle" type="button" aria-label="Toggle sidebar" onClick={() => setSidebarOpen((v) => !v)}>
+            <span />
+            <span />
+            <span />
+          </button>
+          <div className="brand" onClick={() => navigate("/")} role="button" tabIndex={0}>
+            <span className="brand-mark" />
+            <div>
+              <p className="brand-kicker">Video Platform</p>
+              <h1>StreamX</h1>
+            </div>
           </div>
         </div>
 
@@ -71,7 +97,12 @@ export default function Layout() {
             aria-label="Search"
           />
           <button className="search-btn" type="submit" aria-label="Search">
-            ??
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path
+                d="M10 4a6 6 0 1 0 3.75 10.68l4.29 4.28 1.41-1.41-4.28-4.29A6 6 0 0 0 10 4m0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8"
+                fill="currentColor"
+              />
+            </svg>
           </button>
         </form>
 
@@ -119,9 +150,16 @@ export default function Layout() {
                 </div>
 
                 <div className="menu-section">
-                  <button type="button" onClick={toggleTheme}>
-                    Theme
-                  </button>
+                  <label className="menu-select-field" htmlFor="theme-mode-select">
+                    <span>Theme</span>
+                    <div className="menu-select-wrap">
+                      <select id="theme-mode-select" value={themeMode} onChange={onThemeModeChange}>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                        <option value="system">System</option>
+                      </select>
+                    </div>
+                  </label>
                   <button type="button" onClick={openFeedback}>
                     Feedback
                   </button>
@@ -138,9 +176,27 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="main-wrap">
-        <Outlet />
-      </main>
+      <div className={`layout-body ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
+        <aside className={`left-sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
+          <nav className="sidebar-links">
+            <NavLink to="/" end>
+              Home
+            </NavLink>
+            <NavLink to="/subscriptions">Subscriptions</NavLink>
+            <NavLink to="/watch-later">Watch Later</NavLink>
+            <NavLink to="/playlists">Playlists</NavLink>
+            <NavLink to="/queue">Queue</NavLink>
+            <NavLink to="/history">History</NavLink>
+            <NavLink to="/liked-videos">Liked Videos</NavLink>
+            <NavLink to="/your-videos">Your Videos</NavLink>
+            {user?.username ? <NavLink to={`/channel/${user.username}`}>My Channel</NavLink> : null}
+          </nav>
+        </aside>
+
+        <main className="main-wrap">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

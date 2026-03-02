@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { dashboardApi, extractList, subscriptionApi, userApi, videoApi } from "../api";
 import { useAuth } from "../context/AuthContext";
+import { formatDuration, formatViews } from "../utils/videoMeta";
 
 export default function ChannelPage() {
   const { username } = useParams();
@@ -149,12 +150,15 @@ export default function ChannelPage() {
         <div className="video-grid">
           {videos.map((video) => (
             <article key={video._id} className="video-card">
-              <Link to={`/watch/${video._id}`}>
-                <img src={video.thumbnail} alt={video.title} />
-              </Link>
-              <div>
+              <div className="video-thumb-wrap">
+                <Link to={`/watch/${video._id}`}>
+                  <img src={video.thumbnail} alt={video.title} />
+                </Link>
+                <span className="video-duration-badge">{formatDuration(video.duration)}</span>
+              </div>
+              <div className="video-card-body">
                 <h4>{video.title}</h4>
-                <small>{video.views || 0} views</small>
+                <small>{formatViews(video.views)} views</small>
               </div>
             </article>
           ))}

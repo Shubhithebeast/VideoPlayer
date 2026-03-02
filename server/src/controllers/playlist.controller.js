@@ -108,6 +108,74 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
     }));
 })
 
+const getMyPlaylists = asyncHandler(async (req, res) => {
+    const {page = 1, limit = 10} = req.query;
+    const pageCount = parseInt(page, 10);
+    const limitNumber = Math.min(parseInt(limit, 10) || 10, 50);
+    const userId = req.user._id;
+
+    const playlists = await Playlist.aggregate([
+        { $match: { owner: new mongoose.Types.ObjectId(userId) } },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "ownerDetails",
+                pipeline: [
+                    {
+                        $project:{
+                            username:1,
+                            avatar:1
+                        }
+                    }
+                ]
+            }
+        },
+        { $unwind: "$ownerDetails" },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "videos",
+                foreignField: "_id",
+                as: "videoDetails"
+            }
+        },
+        {
+            $addFields: {
+                videosCount: { $size: "$videoDetails" },
+                previewThumbnail: { $arrayElemAt: [ "$videoDetails.thumbnail", 0 ] }
+            }
+        },
+        {
+            $project: {
+                name: 1,
+                description: 1,
+                ownerDetails: 1,
+                videosCount: 1,
+                previewThumbnail: 1,
+                createdAt: 1,
+                updatedAt: 1
+            }
+        },
+        { $sort: { createdAt: -1 } },
+        { $skip: (pageCount - 1) * limitNumber },
+        { $limit: limitNumber }
+    ]);
+
+    const totalPlaylists = await Playlist.countDocuments({ owner: userId });
+
+    return res.status(200).json(new apiResponse(true, 'My playlists fetched successfully', {
+        playlists,
+        pagination: {
+            currentPage: pageCount,
+            totalPages: Math.ceil(totalPlaylists / limitNumber),
+            totalPlaylists,
+            limit: limitNumber
+        }
+    }));
+})
+
 const getPlaylistById = asyncHandler(async (req, res) => {
     const {playlistId} = req.params
     const {page = 1, limit = 10} = req.query;
@@ -335,6 +403,7 @@ const updatePlaylist = asyncHandler(async (req, res) => {
 
 export {
     createPlaylist,
+    getMyPlaylists,
     getUserPlaylists,
     getPlaylistById,
     addVideoToPlaylist,
