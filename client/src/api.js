@@ -147,12 +147,26 @@ export const commentApi = {
     const formData = new FormData();
     formData.append("content", content);
     return request("post", `/comments/${videoId}`, { data: formData });
+  },
+  update(commentId, content) {
+    const formData = new FormData();
+    formData.append("content", content);
+    return request("patch", `/comments/c/${commentId}`, { data: formData });
+  },
+  remove(commentId) {
+    return request("delete", `/comments/c/${commentId}`);
   }
 };
 
 export const likeApi = {
   toggleVideo(videoId) {
     return request("post", `/likes/toggle/l/${videoId}`);
+  },
+  toggleComment(commentId) {
+    return request("post", `/likes/toggle/c/${commentId}`);
+  },
+  toggleTweet(tweetId) {
+    return request("post", `/likes/toggle/t/${tweetId}`);
   },
   listVideos(params = {}) {
     return request("get", "/likes/videos", { params });
@@ -198,6 +212,31 @@ export const playlistApi = {
   },
   removeVideo(videoId, playlistId) {
     return request("patch", `/playlists/remove/${videoId}/${playlistId}`);
+  },
+  update(playlistId, formData) {
+    return request("patch", `/playlists/${playlistId}`, { data: formData });
+  },
+  remove(playlistId) {
+    return request("delete", `/playlists/${playlistId}`);
+  }
+};
+
+export const tweetApi = {
+  create(content) {
+    const formData = new FormData();
+    formData.append("tweet", content);
+    return request("post", "/tweets", { data: formData });
+  },
+  listByUser(userId, params = {}) {
+    return request("get", `/tweets/user/${userId}`, { params });
+  },
+  update(tweetId, content) {
+    const formData = new FormData();
+    formData.append("content", content);
+    return request("patch", `/tweets/${tweetId}`, { data: formData });
+  },
+  remove(tweetId) {
+    return request("delete", `/tweets/${tweetId}`);
   }
 };
 

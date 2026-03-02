@@ -20,6 +20,7 @@ function pickOwner(video) {
 export default function WatchPage() {
   const { videoId } = useParams();
   const { user } = useAuth();
+  const userId = user?._id || user?.id;
 
   const [video, setVideo] = useState(null);
   const [comments, setComments] = useState([]);
@@ -27,6 +28,7 @@ export default function WatchPage() {
   const [channel, setChannel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [commentBusyId, setCommentBusyId] = useState("");
   const [error, setError] = useState("");
 
   const owner = useMemo(() => pickOwner(video), [video]);
@@ -96,6 +98,52 @@ export default function WatchPage() {
       setError(err?.response?.data?.message || "Failed to add comment");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const onEditComment = async (comment) => {
+    const next = window.prompt("Edit comment", comment?.content || "");
+    if (!next || !next.trim() || next.trim() === comment?.content) {
+      return;
+    }
+
+    setCommentBusyId(comment._id);
+    try {
+      await commentApi.update(comment._id, next.trim());
+      await loadComments();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to update comment");
+    } finally {
+      setCommentBusyId("");
+    }
+  };
+
+  const onDeleteComment = async (commentId) => {
+    const ok = window.confirm("Delete this comment?");
+    if (!ok) {
+      return;
+    }
+
+    setCommentBusyId(commentId);
+    try {
+      await commentApi.remove(commentId);
+      await loadComments();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to delete comment");
+    } finally {
+      setCommentBusyId("");
+    }
+  };
+
+  const onLikeComment = async (commentId) => {
+    setCommentBusyId(commentId);
+    try {
+      await likeApi.toggleComment(commentId);
+      await loadComments();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to like comment");
+    } finally {
+      setCommentBusyId("");
     }
   };
 
@@ -183,6 +231,21 @@ export default function WatchPage() {
               <small>
                 @{comment?.owner?.username || "user"} | {comment?.likesCount || 0} likes
               </small>
+              <div className="comment-actions">
+                <button className="btn ghost" type="button" disabled={commentBusyId === comment._id} onClick={() => onLikeComment(comment._id)}>
+                  Like
+                </button>
+                {(comment?.owner?._id || comment?.owner?.id) === userId ? (
+                  <>
+                    <button className="btn ghost" type="button" disabled={commentBusyId === comment._id} onClick={() => onEditComment(comment)}>
+                      Edit
+                    </button>
+                    <button className="btn ghost" type="button" disabled={commentBusyId === comment._id} onClick={() => onDeleteComment(comment._id)}>
+                      Delete
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </article>
           ))}
         </div>

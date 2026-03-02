@@ -5,13 +5,14 @@ import { useAuth } from "../context/AuthContext";
 
 export default function SubscriptionsPage() {
   const { user } = useAuth();
+  const userId = user?._id || user?.id;
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
-    if (!user?._id) {
+    if (!userId) {
       setLoading(false);
       return () => {
         mounted = false;
@@ -22,7 +23,7 @@ export default function SubscriptionsPage() {
     setError("");
 
     subscriptionApi
-      .getSubscribedChannels(user._id, { page: 1, limit: 100 })
+      .getSubscribedChannels(userId, { page: 1, limit: 100 })
       .then((res) => {
         if (!mounted) {
           return;
@@ -44,7 +45,7 @@ export default function SubscriptionsPage() {
     return () => {
       mounted = false;
     };
-  }, [user?._id]);
+  }, [userId]);
 
   return (
     <section>

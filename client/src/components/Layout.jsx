@@ -189,6 +189,7 @@ export default function Layout() {
             <NavLink to="/history">History</NavLink>
             <NavLink to="/liked-videos">Liked Videos</NavLink>
             <NavLink to="/your-videos">Your Videos</NavLink>
+            <NavLink to="/tweets">Tweets</NavLink>
             {user?.username ? <NavLink to={`/channel/${user.username}`}>My Channel</NavLink> : null}
           </nav>
         </aside>

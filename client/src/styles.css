@@ -552,6 +552,20 @@ p {
   color: var(--muted);
 }
 
+.card-actions {
+  margin-top: 0.55rem;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.comment-actions {
+  margin-top: 0.55rem;
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .watch-layout {
   display: grid;
   grid-template-columns: 1.8fr 1fr;
@@ -683,6 +697,10 @@ p {
   gap: 0.35rem;
 }
 
+.playlist-create-form {
+  margin-bottom: 0.8rem;
+}
+
 .channel-list {
   display: grid;
   gap: 0.6rem;
@@ -704,6 +722,19 @@ p {
   height: 48px;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.tweet-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.tweet-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.8rem;
+  box-shadow: var(--shadow);
 }
 
 .relation-card {
