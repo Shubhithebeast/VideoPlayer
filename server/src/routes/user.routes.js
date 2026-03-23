@@ -2,8 +2,22 @@ import { Router } from "express";
 import { changeCurrentUserPassword, getCurrentUser, getWatchHistory, loginUser, logoutUser, refreshAccessToken, registerUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, userChannelProfile } from "../controllers/user.controller.js";
 import {upload} from "../middlewares/multer.middleware.js";
 import { verifyJWT } from './../middlewares/auth.middleware.js';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
+
+// --- Login Rate Limiter ---
+// Prevents brute-force password guessing attacks.
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,  // 15 minutes
+    max: 5,                     
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: "Too many login attempts. Please try again after 15 minutes."
+    }
+});
 
 // Register new user - Body: username, email, fullname, password, Files: avatar(required), coverImage(optional)
 router.route("/register").post(
@@ -14,7 +28,7 @@ router.route("/register").post(
     ,registerUser);
 
 // Login user - Body: (email or username), password
-router.route("/login").post(upload.none(), loginUser);
+router.route("/login").post(upload.none(), loginLimiter, loginUser);
 
 // Logout authenticated user - Auth: accessToken required
 router.route("/logout").post(upload.none(), verifyJWT, logoutUser);
