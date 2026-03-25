@@ -10,6 +10,8 @@ import {
 import {verifyJWT} from "../middlewares/auth.middleware.js"
 import {upload} from "../middlewares/multer.middleware.js"
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import RedisStore from 'rate-limit-redis';
+import redis from '../database/redis.js';
 
 const router = Router();
 router.use(verifyJWT); // Apply verifyJWT middleware to all routes in this file
@@ -25,6 +27,10 @@ const uploadLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
+    store: new RedisStore({
+        sendCommand: (...args) => redis.call(...args),
+        prefix: 'rl:upload:',  // Keys in Redis: rl:upload:665a1b2c...
+    }),
     message: {
         success: false,
         message: "Upload limit reached. You can upload up to 10 videos per hour."

@@ -3,6 +3,8 @@ import { changeCurrentUserPassword, getCurrentUser, getWatchHistory, loginUser, 
 import {upload} from "../middlewares/multer.middleware.js";
 import { verifyJWT } from './../middlewares/auth.middleware.js';
 import rateLimit from 'express-rate-limit';
+import RedisStore from 'rate-limit-redis';
+import redis from '../database/redis.js';
 
 const router = Router();
 
@@ -13,6 +15,10 @@ const loginLimiter = rateLimit({
     max: 5,                     
     standardHeaders: true,
     legacyHeaders: false,
+    store: new RedisStore({
+        sendCommand: (...args) => redis.call(...args),
+        prefix: 'rl:login:',   // Keys in Redis: rl:login:192.168.1.5
+    }),
     message: {
         success: false,
         message: "Too many login attempts. Please try again after 15 minutes."

@@ -4,6 +4,8 @@ const app = express();
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+import RedisStore from 'rate-limit-redis';
+import redis from './database/redis.js';
 
 const defaultDevOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
 const configuredOrigins = (process.env.CORS_ORIGIN || "")
@@ -36,6 +38,10 @@ const globalLimiter = rateLimit({
     max: 100,                   // 100 requests per window per IP
     standardHeaders: true,      // Send RateLimit-* headers in response
     legacyHeaders: false,       // Disable old X-RateLimit-* headers
+    store: new RedisStore({
+        sendCommand: (...args) => redis.call(...args),
+        prefix: 'rl:global:',   // Keys in Redis: rl:global:192.168.1.5
+    }),
     message: {
         success: false,
         message: "Too many requests from this IP, please try again after 15 minutes."
