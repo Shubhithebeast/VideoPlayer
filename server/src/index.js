@@ -17,8 +17,12 @@ dotenv.config({
 import connectDB from './database/db.js';
 import {app} from './app.js';
 import logger from './utils/logger.js';
+// Importing the workers starts them — they begin listening to their queues immediately
+import './queues/videoWorker.js';
+import './queues/cleanupWorker.js';
+import { scheduleCleanupJob } from './queues/cleanupQueue.js';
  
-connectDB().then(() => {
+connectDB().then(async () => {
     app.on("error", (error) => {
         logger.error('Error in server:', error);
         throw error;
@@ -26,6 +30,9 @@ connectDB().then(() => {
     app.listen(process.env.PORT || 8000 , () => {
         logger.info(`🚀 Server is running at http://localhost:${process.env.PORT}/api/v1/healthcheck/liveness`);
     });
+
+    // Schedule the recurring cleanup job (stores schedule in Redis)
+    await scheduleCleanupJob();
     
 }).catch((error) => {
     logger.error('Failed to connect to the database:', error);

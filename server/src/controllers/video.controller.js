@@ -6,6 +6,7 @@ import {asyncHandler} from "../utils/asyncHandler.js"
 import {deleteFromCloudinary, extractPublicIdFromUrl, uploadOnCloudinary} from "../utils/cloudinary.js"
 import logger from "../utils/logger.js"
 import { getCache, setCache, deleteCache } from "../utils/cache.js"
+import { addVideoJob, videoQueue } from "../queues/videoQueue.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -115,66 +116,41 @@ const getAllVideos = asyncHandler(async (req, res) => {
 })
 
 const publishVideo = asyncHandler(async (req, res) => {
-    
-    //  get video, upload to cloudinary, create video
-    //Validate required fields (title, description)
-    const {title, description} = req.body;
-    if(!title || !description){
+
+    // Validate required fields — done BEFORE the queue so the user
+    // gets immediate feedback on bad requests (no point queuing invalid jobs)
+    const { title, description } = req.body;
+    if (!title || !description) {
         throw new apiError(400, "Title and description are required");
     }
 
-    // 2. Check if video file is present in req.files (uploaded via multer)
+    // Check the video file was uploaded by multer to temp folder
     const localVideoPath = req.files?.video?.[0]?.path;
-    if(!localVideoPath){
+    if (!localVideoPath) {
         throw new apiError(400, "Video file is required");
     }
 
-    //Upload video file to Cloudinary 
-    const uploadVideo = await uploadOnCloudinary(localVideoPath);
-    if(!uploadVideo?.secure_url){
-        throw new apiError(500, "Failed to upload video to Cloudinary");
-    }
+    // Thumbnail is optional
+    const localThumbnailPath = req.files?.thumbnail?.[0]?.path || null;
 
-    const videoUrl = uploadVideo.secure_url;
-
-    // Check if thumbnail file is present in req.files
-    const localThumbnailPath = req.files?.thumbnail?.[0]?.path;
-    let uploadThumbnail = null;
- 
-    // Upload thumbnail to Cloudinary
-    if(localThumbnailPath){
-        uploadThumbnail = await uploadOnCloudinary(localThumbnailPath);
-        if(!uploadThumbnail?.secure_url){
-            logger.error("Failed to upload thumbnail to Cloudinary");
-        }
-    }
-
-    // if thumbnail not provided, generate thumbnail URL from video URL
-    const thumbnailUrl = uploadThumbnail?.secure_url || uploadVideo.secure_url.replace(/\.(mp4|mov|avi|mkv)$/i,".jpg");
-
-
-    // Get video duration from Cloudinary response
-    const videoDuration = uploadVideo.duration || 0;
-
-    // Get video owner
-    const ownerId = req.user._id;
-
-
-    // Create video document in database with: title, description,videoURL, thumbnailURL, duration, owner
-    const newVideo = await Video.create({
+    // Add a job to the queue — this is INSTANT (just writes to Redis)
+    // The worker will pick this up and do the actual Cloudinary upload + DB save
+    const ownerId = req.user._id.toString();
+    const job = await addVideoJob({
+        localVideoPath,
+        localThumbnailPath,
         title,
         description,
-        video: videoUrl,
-        thumbnail: thumbnailUrl,
-        duration: videoDuration,
-        uploadBy: ownerId
-    })
+        ownerId,
+    });
 
-    // Invalidate dashboard stats — total video count changed
-    await deleteCache(`dashboard:stats:${ownerId}`);
+    logger.info(`Video upload job queued`, { jobId: job.id, title, ownerId });
 
-    // Return response
-    return res.status(201).json(new apiResponse(201, "Video published successfully", {video: newVideo}));
+    // Return immediately — don't make the user wait!
+    return res.status(202).json(new apiResponse(202, "Video is being processed. Check status with the job ID.", {
+        jobId: job.id,
+        status: "queued",
+    }));
 })
 
 const getVideoById = asyncHandler(async (req, res) => {
@@ -421,10 +397,43 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     return res.status(200).json(new apiResponse(200, "Video publish status toggled successfully", {video: updatedVideo}));
 })
 
+// poll this to check the status of a queued upload
+const getVideoJobStatus = asyncHandler(async (req, res) => {
+    const { jobId } = req.params;
+
+    // Fetch the job from Redis using BullMQ's Queue API
+    const job = await videoQueue.getJob(jobId);
+
+    if (!job) {
+        throw new apiError(404, "Job not found. It may have been cleaned up or never existed.");
+    }
+
+    // getState() returns: 'waiting' | 'active' | 'completed' | 'failed' | 'delayed' | 'unknown'
+    const state = await job.getState();
+
+    const response = {
+        jobId: job.id,
+        status: state,
+        progress: job.progress,  // 0-100, updated by job.updateProgress() in the worker
+    };
+
+    if (state === 'completed') {
+        response.video = job.returnvalue;  // { videoId, title } from the worker's return
+    }
+
+    if (state === 'failed') {
+        response.reason = job.failedReason;
+        response.attempts = job.attemptsMade;
+    }
+
+    return res.status(200).json(new apiResponse(200, "Job status fetched", response));
+})
+
 export {
     getAllVideos,
     publishVideo,
     getVideoById,
+    getVideoJobStatus,
     updateVideo,
     deleteVideo,
     togglePublishStatus

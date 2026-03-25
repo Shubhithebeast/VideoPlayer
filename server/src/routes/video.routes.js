@@ -3,6 +3,7 @@ import {
     deleteVideo,
     getAllVideos,
     getVideoById,
+    getVideoJobStatus,
     publishVideo,
     togglePublishStatus,
     updateVideo,
@@ -53,6 +54,8 @@ router.route("/").get(getAllVideos).post(
     ]),
     publishVideo
 );
+
+router.route("/jobs/:jobId").get(getVideoJobStatus);
 
 router.route("/:videoId")
     .get(getVideoById)

@@ -17,6 +17,7 @@
   "dependencies": {
     "@faker-js/faker": "^9.9.0",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.71.1",
     "cloudinary": "^2.8.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

@@ -136,6 +136,9 @@ export const videoApi = {
   },
   togglePublish(videoId) {
     return request("patch", `/videos/toggle/publish/${videoId}`);
+  },
+  getJobStatus(jobId) {
+    return request("get", `/videos/jobs/${jobId}`);
   }
 };
 
