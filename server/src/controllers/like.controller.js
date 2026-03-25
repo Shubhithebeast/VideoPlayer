@@ -5,6 +5,7 @@ import {apiResponse} from "../utils/apiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 import { Video } from './../models/video.model.js';
 import logger from "../utils/logger.js"
+import { deleteCache } from "../utils/cache.js"
 
 const toggleVideoLike = asyncHandler(async (req, res) => {
     const {videoId} = req.params
@@ -26,6 +27,10 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
         await Like.deleteOne({_id: existingLike._id});
         logger.info(`User ${userId} unliked video ${videoId}`);
 
+        // Invalidate caches — like count changed
+        await deleteCache(`video:${videoId}`);
+        await deleteCache(`dashboard:stats:${video.uploadBy}`);
+
         return res.status(200).json(
             new apiResponse(200, null, "Video unliked successfully")
         );
@@ -39,6 +44,11 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
 
     await newLike.save();
     logger.info(`User ${userId} liked the video ${videoId}`);
+
+    // Invalidate caches — like count changed
+    await deleteCache(`video:${videoId}`);
+    await deleteCache(`dashboard:stats:${video.uploadBy}`);
+
     return res.status(200).json(
         new apiResponse(200, null, "Video liked successfully")
     );

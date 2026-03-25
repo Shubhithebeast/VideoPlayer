@@ -5,6 +5,7 @@ import {apiResponse} from "../utils/apiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 import {deleteFromCloudinary, extractPublicIdFromUrl, uploadOnCloudinary} from "../utils/cloudinary.js"
 import logger from "../utils/logger.js"
+import { getCache, setCache, deleteCache } from "../utils/cache.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -169,6 +170,8 @@ const publishVideo = asyncHandler(async (req, res) => {
         uploadBy: ownerId
     })
 
+    // Invalidate dashboard stats — total video count changed
+    await deleteCache(`dashboard:stats:${ownerId}`);
 
     // Return response
     return res.status(201).json(new apiResponse(201, "Video published successfully", {video: newVideo}));
@@ -182,69 +185,83 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new apiError(400, "Video ID is required");
     }
 
-    const video = await Video.aggregate([
-        // Find video by _id using aggregation pipeline 
-        {
-            $match: {
-                _id: new mongoose.Types.ObjectId(videoId)
-            }
-        },
-         //Add lookup to get owner details (username, fullname, avatar)
-        {
-            $lookup:{
-                from: "users",
-                localField: "uploadBy",
-                foreignField: "_id",
-                as: "uploadBy",
+    // --- CACHE CHECK ---
+    // Try getting video details from Redis before hitting DB call.
+    // Cache key format: "video:{videoId}" (e.g., "video:665a1b2c3d...")
+    const cacheKey = `video:${videoId}`;
+    let videoData = await getCache(cacheKey);
 
-                pipeline:[{
-                    $project:{
-                        username:1,
-                        avatar:1
-                    }
-                }]
-            }
+    if (!videoData) {
+        // Cache MISS — run the full aggregation pipeline
+        const video = await Video.aggregate([
+            // Find video by _id using pipeline 
+            {
+                $match: {
+                    _id: new mongoose.Types.ObjectId(videoId)
+                }
+            },
+             //Add lookup to get owner details (username, fullname, avatar)
+            {
+                $lookup:{
+                    from: "users",
+                    localField: "uploadBy",
+                    foreignField: "_id",
+                    as: "uploadBy",
 
-        },
-        // Add lookup to get likes
-        {
-            $lookup:{
-                from: "likes",
-                localField: "_id",
-                foreignField: "video",
-                as: "likes"
+                    pipeline:[{
+                        $project:{
+                            username:1,
+                            avatar:1
+                        }
+                    }]
+                }
+
+            },
+            // Add lookup to get likes
+            {
+                $lookup:{
+                    from: "likes",
+                    localField: "_id",
+                    foreignField: "video",
+                    as: "likes"
+                }
+            },
+            //Add lookup to get comments count
+            {
+                $lookup:{
+                    from: "comments",
+                    localField: "_id",
+                    foreignField: "video",
+                    as: "comments"
+                }
+            },
+            // Convert arrays to proper format
+            {
+                $addFields: {
+                    likesCount: { $size: "$likes" },
+                    commentsCount: { $size: "$comments" }
+                }
+            },
+            // Remove full arrays from response
+            {
+                $project: {
+                    likes: 0,
+                    updatedAt: 0,
+                    __v: 0
+                }
             }
-        },
-        //Add lookup to get comments count
-        {
-            $lookup:{
-                from: "comments",
-                localField: "_id",
-                foreignField: "video",
-                as: "comments"
-            }
-        },
-        // Convert arrays to proper format
-        {
-            $addFields: {
-                likesCount: { $size: "$likes" },
-                commentsCount: { $size: "$comments" }
-            }
-        },
-        // Remove full arrays from response
-        {
-            $project: {
-                likes: 0,
-                updatedAt: 0,
-                __v: 0
-            }
+        ])
+     
+        
+        // Check if video exists, if not throw 404 error
+        if(video.length === 0){
+            throw new apiError(404, "Video not found");
         }
-    ])
- 
-    
-    // Check if video exists, if not throw 404 error
-    if(video.length === 0){
-        throw new apiError(404, "Video not found");
+
+        videoData = video[0];
+
+        // Store in Redis with 10 minute TTL (600 seconds)
+        await setCache(cacheKey, videoData, 600);
     }
 
     // Increment views only on first watch by this user.
@@ -265,7 +282,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     }
 
     //Return response with video details
-    return res.status(200).json(new apiResponse(200, "Video fetched successfully", {video: video[0]}));
+    return res.status(200).json(new apiResponse(200, "Video fetched successfully", {video: videoData}));
 
 })
 
@@ -317,6 +334,9 @@ const updateVideo = asyncHandler(async (req, res) => {
     //Save updated video document
     const updatedVideo = await video.save();
 
+    // Invalidate cache — old video data is now stale
+    await deleteCache(`video:${videoId}`);
+
     return res.status(200).json(new apiResponse(200, "Video updated successfully", {video: updatedVideo}));
 })
 
@@ -367,6 +387,10 @@ const deleteVideo = asyncHandler(async (req, res) => {
         await session.commitTransaction();
         session.endSession();
 
+        // Invalidate caches — video is gone, stats changed
+        await deleteCache(`video:${videoId}`);
+        await deleteCache(`dashboard:stats:${video.uploadBy}`);
+
         return res.status(200).json(
             new apiResponse(200, "Video deleted successfully")
         );
@@ -389,6 +413,9 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     }
     video.isPublished = !video.isPublished;
     const updatedVideo = await video.save();
+
+    // Invalidate cache — publish status changed
+    await deleteCache(`video:${videoId}`);
 
     logger.info(`Video publish status toggled. Video ID: ${videoId}, New Status: ${updatedVideo.isPublished}`);
     return res.status(200).json(new apiResponse(200, "Video publish status toggled successfully", {video: updatedVideo}));

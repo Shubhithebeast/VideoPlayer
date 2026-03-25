@@ -6,11 +6,23 @@ import {Comment} from "../models/comment.model.js"
 import { apiError } from "../utils/apiError.js"
 import {apiResponse} from "../utils/apiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
+import { getCache, setCache } from "../utils/cache.js"
 
 const getChannelStats = asyncHandler(async (req, res) => {
 
     // Get the channel stats like total video views, total subscribers, total videos, total likes etc.
     const userId = req.user._id;
+
+    // --- CACHE CHECK ---
+    // Key format: "dashboard:stats:{userId}" — one cache per channel owner
+    const cacheKey = `dashboard:stats:${userId}`;
+    const cachedStats = await getCache(cacheKey);
+
+    if (cachedStats) {
+        return res.status(200).json(new apiResponse(true, 'Channel statistics fetched successfully', cachedStats));
+    }
+
+    // Cache MISS — run all 4 DB queries
 
     const totalVideos = await Video.countDocuments({ uploadBy: userId });
 
@@ -42,6 +54,10 @@ const getChannelStats = asyncHandler(async (req, res) => {
         totalSubscribers,
         totalLikes: totalLikes[0] ? totalLikes[0].totalLikes : 0
     };
+
+    // Store in Redis with 1 hour TTL (3600 seconds)
+    // Dashboard stats don't change often — 1 hour is reasonable
+    await setCache(cacheKey, stats, 3600);
 
     return res.status(200).json(new apiResponse(true, 'Channel statistics fetched successfully', stats));
     
