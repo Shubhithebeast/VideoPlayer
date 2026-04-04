@@ -19,5 +19,6 @@ const tweetSchema = new Schema(
 );
 
 tweetSchema.plugin(mongooseAggregatePaginate);
+tweetSchema.index({owner: 1, createdAt: -1}); // getUserTweets — filter by owner, sort by newest
 
 export const Tweet = mongoose.model("Tweet", tweetSchema);

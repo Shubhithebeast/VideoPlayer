@@ -25,5 +25,9 @@ const likeSchema = new Schema(
 );
 
 likeSchema.plugin(mongooseAggregatePaginate);
+likeSchema.index({likedBy: 1, video: 1});   // toggle video like — query by both
+likeSchema.index({likedBy: 1, comment: 1}); // toggle comment like
+likeSchema.index({likedBy: 1, tweet: 1});   // toggle tweet like
+likeSchema.index({video: 1});               // count likes on a video (aggregation $lookup)
 
 export const Like = mongoose.model("Like", likeSchema);

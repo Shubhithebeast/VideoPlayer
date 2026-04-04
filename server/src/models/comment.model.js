@@ -23,5 +23,6 @@ const commentSchema = new Schema(
 );
 
 commentSchema.plugin(mongooseAggregatePaginate);
+commentSchema.index({video: 1, createdAt: -1}); // getVideoComments — filter by video, sort by newest
 
 export const Comment = mongoose.model("Comment", commentSchema);

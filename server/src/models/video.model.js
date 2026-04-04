@@ -42,5 +42,7 @@ const videoSchema = new Schema(
 
 videoSchema.plugin(mongooseAggregatePaginate);
 videoSchema.index({title: "text", description: "text"});
+videoSchema.index({uploadBy: 1, isPublished: 1}); // getAllVideos filters by both
+videoSchema.index({isPublished: 1, createdAt: -1});  // feed sorted by newest
 
 export const Video = mongoose.model('Video', videoSchema);
