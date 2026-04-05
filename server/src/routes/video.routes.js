@@ -38,6 +38,80 @@ const uploadLimiter = rateLimit({
     }
 });
 
+/**
+ * @swagger
+ * tags:
+ *   name: Videos
+ *   description: Video upload, retrieval, and management
+ */
+
+/**
+ * @swagger
+ * /videos:
+ *   get:
+ *     summary: Get all published videos (paginated, searchable)
+ *     tags: [Videos]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: query
+ *         schema:
+ *           type: string
+ *         description: Full-text search on title and description
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           example: createdAt
+ *       - in: query
+ *         name: sortType
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         description: Filter videos by uploader
+ *     responses:
+ *       200:
+ *         description: Paginated list of videos
+ *   post:
+ *     summary: Upload a new video (rate limited — 10/hour per user)
+ *     tags: [Videos]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [title, description, video]
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *               thumbnail:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       202:
+ *         description: Video queued for processing — returns jobId
+ *       429:
+ *         description: Upload limit reached
+ */
 router.route("/").get(getAllVideos).post(
     uploadLimiter,
     upload.fields(
@@ -55,13 +129,102 @@ router.route("/").get(getAllVideos).post(
     publishVideo
 );
 
+/**
+ * @swagger
+ * /videos/jobs/{jobId}:
+ *   get:
+ *     summary: Check video processing job status
+ *     tags: [Videos]
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Job state (queued/active/completed/failed) + progress %
+ *       404:
+ *         description: Job not found
+ */
 router.route("/jobs/:jobId").get(getVideoJobStatus);
 
+/**
+ * @swagger
+ * /videos/{videoId}:
+ *   get:
+ *     summary: Get video by ID (cached 10 min, increments views)
+ *     tags: [Videos]
+ *     parameters:
+ *       - in: path
+ *         name: videoId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Video details with like/comment counts
+ *       404:
+ *         description: Video not found
+ *   delete:
+ *     summary: Delete a video
+ *     tags: [Videos]
+ *     parameters:
+ *       - in: path
+ *         name: videoId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Video deleted
+ *   patch:
+ *     summary: Update video title, description, or thumbnail
+ *     tags: [Videos]
+ *     parameters:
+ *       - in: path
+ *         name: videoId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               thumbnail:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Video updated
+ */
 router.route("/:videoId")
     .get(getVideoById)
     .delete(deleteVideo)
     .patch(upload.single("thumbnail"), updateVideo);
 
+/**
+ * @swagger
+ * /videos/toggle/publish/{videoId}:
+ *   patch:
+ *     summary: Toggle video publish status
+ *     tags: [Videos]
+ *     parameters:
+ *       - in: path
+ *         name: videoId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Publish status toggled
+ */
 router.route("/toggle/publish/:videoId").patch(togglePublishStatus);
 
 export default router

@@ -3,11 +3,13 @@ const app = express();
 
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './swagger.js';
 import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
 import redis from './database/redis.js';
 
-const defaultDevOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
+const defaultDevOrigins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8000"];
 const configuredOrigins = (process.env.CORS_ORIGIN || "")
     .split(",")
     .map((origin) => origin.trim())
@@ -66,6 +68,9 @@ import commentRouter from "./routes/comment.routes.js"
 import likeRouter from "./routes/like.routes.js"
 import playlistRouter from "./routes/playlist.routes.js"
 import dashboardRouter from "./routes/dashboard.routes.js"
+
+// Swagger UI — API docs
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // routes  declaration
 app.use("/api/v1/users", userRouter);

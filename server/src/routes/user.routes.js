@@ -25,7 +25,52 @@ const loginLimiter = rateLimit({
     }
 });
 
-// Register new user - Body: username, email, fullname, password, Files: avatar(required), coverImage(optional)
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: User registration, auth, and profile management
+ */
+
+/**
+ * @swagger
+ * /users/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Users]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [username, email, fullname, password, avatar]
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: john_doe
+ *               email:
+ *                 type: string
+ *                 example: john@example.com
+ *               fullname:
+ *                 type: string
+ *                 example: John Doe
+ *               password:
+ *                 type: string
+ *                 example: secret123
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *               coverImage:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *       409:
+ *         description: Email or username already exists
+ */
 router.route("/register").post(
     upload.fields([
         {name:"avatar", maxCount:1},
@@ -33,34 +78,200 @@ router.route("/register").post(
     ])
     ,registerUser);
 
-// Login user - Body: (email or username), password
+/**
+ * @swagger
+ * /users/login:
+ *   post:
+ *     summary: Login user (rate limited — 5 attempts per 15 min)
+ *     tags: [Users]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: john@example.com
+ *               username:
+ *                 type: string
+ *                 example: john_doe
+ *               password:
+ *                 type: string
+ *                 example: secret123
+ *     responses:
+ *       200:
+ *         description: Login successful — sets accessToken and refreshToken cookies
+ *       401:
+ *         description: Invalid credentials
+ *       429:
+ *         description: Too many login attempts
+ */
 router.route("/login").post(upload.none(), loginLimiter, loginUser);
 
-// Logout authenticated user - Auth: accessToken required
+/**
+ * @swagger
+ * /users/logout:
+ *   post:
+ *     summary: Logout current user
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Logged out — cookies cleared
+ */
 router.route("/logout").post(upload.none(), verifyJWT, logoutUser);
 
-// Refresh access token - Body or Cookie: refreshToken
+/**
+ * @swagger
+ * /users/refreshToken:
+ *   post:
+ *     summary: Get a new access token using refresh token
+ *     tags: [Users]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: New access token issued
+ *       401:
+ *         description: Invalid or expired refresh token
+ */
 router.route("/refreshToken").post(upload.none(), refreshAccessToken);
 
-// Get current authenticated user details - Auth: accessToken required
+/**
+ * @swagger
+ * /users/getUser:
+ *   get:
+ *     summary: Get current authenticated user
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: User details returned
+ */
 router.route("/getUser").get(upload.none(), getCurrentUser);
 
-// Change password for authenticated user - Auth: accessToken, Body: oldPassword, newPassword
+/**
+ * @swagger
+ * /users/changePassword:
+ *   post:
+ *     summary: Change current user password
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [oldPassword, newPassword]
+ *             properties:
+ *               oldPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password changed
+ *       400:
+ *         description: Old password is incorrect
+ */
 router.route("/changePassword").post(upload.none(), verifyJWT, changeCurrentUserPassword);
 
-// Update user account details - Auth: accessToken, Body: fullname, email
+/**
+ * @swagger
+ * /users/updateAccountDetails:
+ *   post:
+ *     summary: Update fullname, email, or username
+ *     tags: [Users]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullname:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               username:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Account details updated
+ */
 router.route("/updateAccountDetails").post(upload.none(), verifyJWT, updateAccountDetails);
 
-// Update user avatar image - Auth: accessToken, File: avatar
+/**
+ * @swagger
+ * /users/avatar:
+ *   post:
+ *     summary: Update user avatar image
+ *     tags: [Users]
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Avatar updated
+ */
 router.route("/avatar").post(verifyJWT, upload.single("avatar"), updateUserAvatar);
 
-// Update user cover image - Auth: accessToken, File: coverImage
+/**
+ * @swagger
+ * /users/coverImage:
+ *   post:
+ *     summary: Update user cover image
+ *     tags: [Users]
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               coverImage:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Cover image updated
+ */
 router.route("/coverImage").post(verifyJWT, upload.single("coverImage"), updateUserCoverImage);
 
-// Get user channel profile by username - Params: username
+/**
+ * @swagger
+ * /users/c/{username}:
+ *   get:
+ *     summary: Get channel profile by username
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: username
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Channel profile with subscriber counts
+ *       404:
+ *         description: Channel not found
+ */
 router.route("/c/:username").get(verifyJWT, userChannelProfile);
 
-// Get user watch history - Auth: accessToken
+/**
+ * @swagger
+ * /users/history:
+ *   get:
+ *     summary: Get current user watch history
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: List of watched videos
+ */
 router.route("/history").get(verifyJWT, getWatchHistory);
 
 
