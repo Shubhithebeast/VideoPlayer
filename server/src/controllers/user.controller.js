@@ -28,7 +28,7 @@ const generateAccessAndRefreshTokens = async(userid) => {
 }
 
 const getCurrentUser = asyncHandler(async (req, res, next) => {
-    const users = await User.find({}).select("-password -refreshToken");
+    const users = await User.find({}).select("-password -refreshToken").lean();
 
     return res
     .status(200)
@@ -105,7 +105,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
     // remove password and refresh token from response
     const createdUser = await User.findById(user._id).select(
         "-password -refreshToken"
-    )
+    ).lean()
 
 
     // check for user creation success
@@ -163,7 +163,7 @@ const loginUser = asyncHandler(async (req, res, next) => {
     // access token and refresh token
     const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id);
 
-    const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken").lean();
 
 
     // send cookies 
@@ -237,7 +237,7 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
             throw new apiError(401, "Invalid refresh token");
         }
     
-        const user = await User.findById(decodedToken._id);
+        const user = await User.findById(decodedToken._id).lean();
     
         if(!user || user?.refreshToken !== incomingRefreshToken){
             throw new apiError(401, "Invalid refresh token");
@@ -366,7 +366,7 @@ const updateUserAvatar = asyncHandler(async (req, res, next) => {
     }
 
     // Get current user to access old avatar URL
-    const currentUser = await User.findById(req.user._id);
+    const currentUser = await User.findById(req.user._id).lean();
     if(!currentUser){
         throw new apiError(404, "User not found");
     }
@@ -415,7 +415,7 @@ const updateUserCoverImage = asyncHandler(async (req, res, next) => {
     }
 
     //get current user to access old cover image URL
-    const currentUser = await User.findById(req.user._id);
+    const currentUser = await User.findById(req.user._id).lean();
     if(!currentUser){
         throw new apiError(404, "User not found");
     }

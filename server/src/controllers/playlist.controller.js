@@ -289,7 +289,7 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     }
 
     const { Video } = await import('../models/video.model.js');
-    const video = await Video.findById(videoId);
+    const video = await Video.findById(videoId).lean();
     if(!video){
         throw new apiError(404, 'Video not found');
     }
@@ -345,7 +345,7 @@ const deletePlaylist = asyncHandler(async (req, res) => {
         throw new apiError(400, 'Invalid playlist ID');
     }
 
-    const playlist = await Playlist.findById(playlistId);
+    const playlist = await Playlist.findById(playlistId).lean();
     if(!playlist){
         throw new apiError(404, 'Playlist not found');
     }

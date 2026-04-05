@@ -98,7 +98,7 @@ const addComment = asyncHandler(async (req, res) => {
     const userId = req.user._id;
 
     // Check if video exists 
-    const video = await Video.findById(videoId);
+    const video = await Video.findById(videoId).lean();
     if(!video){
         throw new apiError(404, "Video not found");
     }

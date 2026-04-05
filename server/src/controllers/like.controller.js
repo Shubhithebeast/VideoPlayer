@@ -14,13 +14,13 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
         return apiError(res, 400, "Invalid video ID")
     }
 
-    const video = await Video.findById(videoId)
+    const video = await Video.findById(videoId).lean()
     if(!video){
         return apiError(res, 404, "Video not found")
     }
 
     const userId = req.user._id;
-    const existingLike = await Like.findOne({likedBy: userId, video: videoId});
+    const existingLike = await Like.findOne({likedBy: userId, video: videoId}).lean();
 
     if(existingLike){
         // Unlike the video
@@ -67,7 +67,7 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
     }
 
     const userId = req.user._id;
-    const existingLike = await Like.findOne({likedBy: userId, comment: commentId});
+    const existingLike = await Like.findOne({likedBy: userId, comment: commentId}).lean();
 
     if(existingLike){
         // Unlike the comment
@@ -103,7 +103,7 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
     }
 
     const userId = req.user._id;
-    const existingLike = await Like.findOne({likedBy: userId, tweet: tweetId});
+    const existingLike = await Like.findOne({likedBy: userId, tweet: tweetId}).lean();
     if(existingLike){
         // Unlike the tweet
         await Like.deleteOne({_id: existingLike._id});

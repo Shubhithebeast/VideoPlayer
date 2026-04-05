@@ -14,7 +14,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
         throw new apiError(400, 'Invalid channel ID');
     }
 
-    const channelUser = await User.findById(channelId);
+    const channelUser = await User.findById(channelId).lean();
     if(!channelUser){
         throw new apiError(404, 'Channel (user) not found');
     }
@@ -60,7 +60,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
         throw new apiError(400, 'Invalid channel ID');
     }
 
-    const channelUser = await User.findById(channelId);
+    const channelUser = await User.findById(channelId).lean();
     if(!channelUser){
         throw new apiError(404, 'Channel (user) not found');
     }
@@ -125,7 +125,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
         throw new apiError(400, 'Invalid subscriber ID');
     }
 
-    const subscriberUser = await User.findById(subscriberId);
+    const subscriberUser = await User.findById(subscriberId).lean();
     if(!subscriberUser){
         throw new apiError(404, 'Subscriber (user) not found');
     }
