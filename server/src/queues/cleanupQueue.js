@@ -1,18 +1,25 @@
 import { Queue } from 'bullmq';
 import logger from '../utils/logger.js';
 
+const isDisabled = process.env.DISABLE_REDIS === 'true';
+
 const connection = {
     host: process.env.REDIS_HOST || '127.0.0.1',
     port: parseInt(process.env.REDIS_PORT) || 6379,
 };
 
-const cleanupQueue = new Queue('temp-cleanup', { connection });
+const cleanupQueue = isDisabled ? null : new Queue('temp-cleanup', { connection });
 
 // --- Register the repeatable job ---
 // This runs once at startup and tells Redis: "run 'cleanup-temp-files' every hour".
 // BullMQ stores the schedule in Redis, so even if the server restarts,
 // the schedule is remembered and won't create duplicate schedules.
 const scheduleCleanupJob = async () => {
+    if (isDisabled) {
+        logger.info('Cleanup queue disabled (test mode), skipping schedule');
+        return;
+    }
+
     // Remove any existing schedule first to avoid duplicates on restart
     await cleanupQueue.obliterate({ force: true }).catch(() => {});
 

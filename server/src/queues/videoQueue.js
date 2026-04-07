@@ -1,6 +1,8 @@
 import { Queue } from 'bullmq';
 import logger from '../utils/logger.js';
 
+const isDisabled = process.env.DISABLE_REDIS === 'true';
+
 // --- Redis connection config ---
 // BullMQ manages its OWN Redis connections internally.
 // BullMQ will create separate connections for the Queue and Worker.
@@ -12,12 +14,17 @@ const connection = {
 // --- Create the Queue ---
 // All video processing jobs will be added to this queue.
 // In Redis, keys like: bull:video-processing:...
-const videoQueue = new Queue('video-processing', { connection });
+const videoQueue = isDisabled ? null : new Queue('video-processing', { connection });
 
-logger.info('Video processing queue initialized');
+if (!isDisabled) logger.info('Video processing queue initialized');
 
 // --- Helper: Add a video upload job ---
 const addVideoJob = async (jobData) => {
+    if (isDisabled) {
+        logger.info('Video queue disabled (test mode), skipping job', { title: jobData.title });
+        return { id: 'mock-job-id' };
+    }
+
     const job = await videoQueue.add(
         'upload-video',     // Job name
         jobData,            // data the worker will receive (file paths, title, userId, etc.)

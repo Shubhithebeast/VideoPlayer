@@ -8,6 +8,7 @@ import { swaggerSpec } from './swagger.js';
 import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
 import redis from './database/redis.js';
+import { apiError } from './utils/apiError.js';
 
 const defaultDevOrigins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8000"];
 const configuredOrigins = (process.env.CORS_ORIGIN || "")
@@ -16,6 +17,18 @@ const configuredOrigins = (process.env.CORS_ORIGIN || "")
     .filter(Boolean);
 
 const allowedOrigins = configuredOrigins.length > 0 ? configuredOrigins : defaultDevOrigins;
+const shouldUseRedisStore =
+    process.env.NODE_ENV !== "test" &&
+    process.env.DISABLE_REDIS !== "true" &&
+    process.env.REDIS_DISABLED !== "true";
+
+const createRateLimitStore = (prefix) =>
+    shouldUseRedisStore
+        ? new RedisStore({
+            sendCommand: (...args) => redis.call(...args),
+            prefix,
+        })
+        : undefined;
 
 app.use(cors({
     origin: (origin, callback) => {
@@ -40,10 +53,7 @@ const globalLimiter = rateLimit({
     max: 100,                   // 100 requests per window per IP
     standardHeaders: true,      // Send RateLimit-* headers in response
     legacyHeaders: false,       // Disable old X-RateLimit-* headers
-    store: new RedisStore({
-        sendCommand: (...args) => redis.call(...args),
-        prefix: 'rl:global:',   // Keys in Redis: rl:global:192.168.1.5
-    }),
+    store: createRateLimitStore('rl:global:'),
     message: {
         success: false,
         message: "Too many requests from this IP, please try again after 15 minutes."
@@ -82,6 +92,21 @@ app.use("/api/v1/likes", likeRouter)
 app.use("/api/v1/subscriptions", subscriptionRouter)
 app.use("/api/v1/playlist", playlistRouter)
 app.use("/api/v1/dashboard", dashboardRouter)
+
+app.use((req, res, next) => {
+    next(new apiError(404, `Route not found: ${req.method} ${req.originalUrl}`));
+});
+
+app.use((err, req, res, next) => {
+    const statusCode = err?.statusCode || 500;
+
+    res.status(statusCode).json({
+        success: false,
+        message: err?.message || "Internal Server Error",
+        errors: err?.errors || [],
+        data: null,
+    });
+});
 
 
 

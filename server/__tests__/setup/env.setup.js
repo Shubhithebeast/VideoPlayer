@@ -1,0 +1,9 @@
+process.env.NODE_ENV = "test";
+process.env.DISABLE_REDIS = "true";
+process.env.MOCK_CLOUDINARY = "true";
+process.env.ACCESS_TOKEN_SECRET = "test-access-secret";
+process.env.ACCESS_TOKEN_EXPIRY = "1h";
+process.env.REFRESH_TOKEN_SECRET = "test-refresh-secret";
+process.env.REFRESH_TOKEN_EXPIRY = "7d";
+process.env.CORS_ORIGIN = "http://localhost:5173";
+process.env.MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/videoplayer-test";

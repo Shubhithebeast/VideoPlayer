@@ -17,6 +17,11 @@ import redis from '../database/redis.js';
 const router = Router();
 router.use(verifyJWT); // Apply verifyJWT middleware to all routes in this file
 
+const shouldUseRedisStore =
+    process.env.NODE_ENV !== "test" &&
+    process.env.DISABLE_REDIS !== "true" &&
+    process.env.REDIS_DISABLED !== "true";
+
 // --- Upload Rate Limiter ---
 // Uses user ID (not IP) as the key — so each user gets their own counter.
 // Falls back to ipKeyGenerator (library's safe IP helper) for unauthenticated edge cases.
@@ -28,10 +33,12 @@ const uploadLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    store: new RedisStore({
-        sendCommand: (...args) => redis.call(...args),
-        prefix: 'rl:upload:',  // Keys in Redis: rl:upload:665a1b2c...
-    }),
+    store: shouldUseRedisStore
+        ? new RedisStore({
+            sendCommand: (...args) => redis.call(...args),
+            prefix: 'rl:upload:',  // Keys in Redis: rl:upload:665a1b2c...
+        })
+        : undefined,
     message: {
         success: false,
         message: "Upload limit reached. You can upload up to 10 videos per hour."

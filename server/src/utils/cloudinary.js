@@ -2,6 +2,8 @@ import {v2 as cloudinary} from "cloudinary";
 import fs from "fs";
 import logger from "./logger.js";
 
+const isTestMode = process.env.NODE_ENV === "test" || process.env.MOCK_CLOUDINARY === "true";
+
 // Configure Cloudinary once at module level
 cloudinary.config({ 
     cloud_name: process.env.CLOUDINARY_NAME, 
@@ -27,6 +29,18 @@ const uploadOnCloudinary = async (localFilePath) => {
         if(!localFilePath){
             return null;
         }
+
+        if (isTestMode) {
+            const fileName = localFilePath.split(/[\\/]/).pop();
+            safeCleanup(localFilePath);
+            return {
+                url: `https://mock-cloudinary.local/${fileName}`,
+                secure_url: `https://mock-cloudinary.local/${fileName}`,
+                public_id: fileName,
+                resource_type: "auto",
+            };
+        }
+
         const uploadResult = await cloudinary.uploader.upload(localFilePath,{
             resource_type: "auto"
         });
@@ -46,6 +60,10 @@ const deleteFromCloudinary = async (publicId, type) => {
 
         if(!publicId){
             throw new Error("Public ID is required..");
+        }
+
+        if (isTestMode) {
+            return { result: "ok", public_id: publicId, resource_type: type || "image" };
         }
 
         const deleteResult = await cloudinary.uploader.destroy(publicId, {resource_type: type || "image"});
